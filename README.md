@@ -1,21 +1,31 @@
-# Chain-store website foundation
+# H2T men's shirt store chain
 
 Spring Boot 4.1.1, Java 26, Maven Wrapper 3.9.16, executable WAR.
-Root package: `com.example.demo`. Business features are intentionally deferred.
+Root package: `com.example.demo`. The phase-2.5 multi-shop domain, JPA entities and repositories
+are available; business services, controllers and frontend are deferred.
+See [database design](docs/database-design.md) for relationships, constraints and ownership.
 
 ## Build on Windows
 
-Maven uses `JAVA_HOME`, which may differ from `java` on `PATH`.
-Point it at an installed **JDK 26** in the current PowerShell session:
+Install **JDK 26**. Maven Toolchains automatically selects an installed JDK 26
+for compilation and tests, even if Maven itself starts under another JDK through
+`JAVA_HOME`. No machine-specific JDK path is stored in the POM.
 
 ```powershell
-$env:JAVA_HOME = 'C:\Program Files\Java\jdk-26.0.2.1' # Adjust to your installation.
 .\mvnw.cmd -version
 .\mvnw.cmd clean compile
 .\mvnw.cmd test
 .\mvnw.cmd clean test
 .\mvnw.cmd clean package
 ```
+
+`mvnw.cmd -version` reports the JDK running Maven; the build's
+`Selected JDK toolchain` / `Toolchain in maven-compiler-plugin` messages show the
+JDK used to compile and test. If a nonstandard JDK installation is not discovered,
+set `JAVA26_HOME` to its location. The build fails early if no JDK 26 is available.
+See [Maven JDK discovery](https://maven.apache.org/plugins/maven-toolchains-plugin/toolchains/jdk-discovery.html).
+
+For direct `java -jar` execution, the `java` command must still use JDK 26.
 
 The WAR is written to `target/demo-0.0.1-SNAPSHOT.war`.
 The wrapper handles a Maven home directory with no PowerShell `Target` property.
@@ -27,14 +37,19 @@ New-Item -ItemType Directory -Force .build-tools/tmp | Out-Null
 $env:MAVEN_USER_HOME = "$PWD\.build-tools"
 $env:TEMP = "$PWD\.build-tools\tmp"
 $env:TMP = $env:TEMP
-.\mvnw.cmd "-Dmaven.repo.local=$PWD\.build-tools\repository" "-Djava.io.tmpdir=$env:TEMP" clean test
+.\mvnw.cmd "-Dmaven.repo.local=$PWD\.build-tools\repository" "-Djava.io.tmpdir=$env:TEMP" "-Duser.home=$PWD\.build-tools\home" clean test
 ```
+
+The local `user.home` override also keeps the JDK discovery cache inside the workspace.
 
 `.build-tools/` and `target/` are ignored by Git.
 
 ## Runtime configuration
 
-Set these environment variables in the process that starts the application.
+Set these environment variables in the process that starts the application,
+or define the same `DB_*` keys in `application-local.properties` at the project root.
+That optional local file is loaded automatically, ignored by Git and excluded from
+the WAR. Environment variables take precedence over its values.
 Do not store real values in Git. `.env.example` lists the variable names;
 Spring Boot does **not** automatically load `.env` files.
 
@@ -50,10 +65,26 @@ Spring Boot does **not** automatically load `.env` files.
 
 URL shape: `jdbc:sqlserver://<host>:1433;databaseName=<database>;encrypt=true;trustServerCertificate=false`.
 Use a server certificate trusted by the JVM. Create/configure the database separately.
-Hibernate DDL and SQL script initialization are disabled; startup does not create,
-update or delete database tables.
+The base configuration keeps Hibernate DDL disabled. For local development,
+the ignored `application-local.properties` activates `spring.profiles.active=dev`.
+The tracked `application-dev.properties` uses `ddl-auto=update` so Hibernate creates
+missing tables and updates mappings in the configured database without dropping it.
+Schema errors fail startup. SQL script initialization remains disabled.
 
-After supplying the database environment variables:
+For the configured local instance, `application-local.properties` contains the
+URL for `localhost:1433/H2T_DB` and login `h2t_user`. Supply `DB_PASSWORD`
+locally before running. The supplied URL uses `trustServerCertificate=true`
+for this local setup.
+
+When upgrading the existing phase-2 schema, first read the
+[migration requirements](docs/database-design.md#safe-local-upgrade-from-phase-2)
+and run [the guarded local migration](docs/sql/phase-2.5-local-pre-update.sql)
+in H2T_DB with older application instances stopped. It handles legacy NOT NULL
+order columns and the old role CHECK that Hibernate update does not replace.
+The script intentionally rejects populated legacy data needing a business backfill.
+The migration has already been applied to this local database.
+
+After supplying the database credentials:
 
 ```powershell
 .\mvnw.cmd spring-boot:run
@@ -74,14 +105,19 @@ Missing SQL Server configuration is an external environment blocker.
 - JSP views belong in `src/main/webapp/WEB-INF/views/`, resolved with prefix
   `/WEB-INF/views/` and suffix `.jsp`. Jakarta JSTL API and implementation are included.
   No page or controller is implemented yet; the resolver test does not compile/render a JSP.
-- Spring Security keeps its default protection. No custom login, JWT filter,
-  user store or authentication implementation is provided.
+- Spring Security keeps its default protection. No custom login, JWT filter
+  or authentication implementation is provided.
 - WebSocket, JWT, SiteMesh and Cloudinary dependencies are available for later work.
   No messaging endpoint, decorator mapping or external Cloudinary call is configured.
-- Tests retain the application context test and verify JPA startup, a real
-  `SELECT 1` against an isolated in-memory H2 database, and the JSP view path.
+- Tests retain the application context test, verify the JSP view path and exercise
+  persistence, uniqueness, quantity checks, lazy associations and order snapshots
+  using H2, including multi-shop orders, addresses, history and shipper assignment.
+  The test profile uses `ddl-auto=update` on a fresh in-memory database.
   H2 has **test scope only** and `application-test.properties` exists only under
   `src/test/resources`; it is not a SQL Server emulator or a runtime fallback.
+- A separate test generates SQL Server DDL into `target/sqlserver-schema.sql`
+  for review without opening a database connection. Local `dev` startup applies
+  Hibernate schema updates to SQL Server; other profiles retain the base `none` setting.
 - Mockito is loaded explicitly as a test JVM agent for modern JDKs. The JVM may
   still emit an informational class-data-sharing warning.
 
