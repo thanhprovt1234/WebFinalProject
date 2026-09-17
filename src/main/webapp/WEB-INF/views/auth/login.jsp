@@ -28,6 +28,12 @@
         </p>
       </c:if>
 
+      <c:if test="${param.resetSuccess != null}">
+        <p style="color: green;">
+          Đổi mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới.
+        </p>
+      </c:if>
+
       <form action="${pageContext.request.contextPath}/login" method="post">
         <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
 
@@ -43,6 +49,12 @@
 
         <button type="submit">Đăng nhập</button>
       </form>
+
+      <p>
+        <a href="${pageContext.request.contextPath}/forgot-password">
+          Quên mật khẩu?
+        </a>
+      </p>
     </body>
 
     </html>
