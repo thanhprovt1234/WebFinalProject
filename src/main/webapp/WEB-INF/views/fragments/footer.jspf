@@ -11,26 +11,59 @@
     <c:otherwise>
   <footer class="site-footer">
     <div class="container app-container">
-      <div class="footer-main">
-        <div>
+      <div class="footer-main footer-columns">
+        <section class="footer-intro" aria-labelledby="footer-intro-title">
+          <h2 id="footer-intro-title">Giới thiệu</h2>
           <a class="brand-lockup footer-brand" href="${pageContext.request.contextPath}/" aria-label="H2T - Trang chủ">
             <span class="brand-mark" aria-hidden="true">H2T</span>
             <span class="brand-name">Menswear</span>
           </a>
-          <p class="footer-copy">Thời trang nam hiện đại, tinh gọn và vừa vặn với nhịp sống mỗi ngày.</p>
-        </div>
-        <nav class="footer-links" aria-label="Liên kết cuối trang">
-          <a href="${pageContext.request.contextPath}/">Trang chủ</a>
-          <a href="${pageContext.request.contextPath}/#collection">Bộ sưu tập</a>
+          <p class="footer-copy">H2T mang đến cảm hứng thời trang nam tinh giản, dễ phối và vừa vặn với nhịp sống mỗi ngày. Từ những món đồ quen thuộc, tạo nên phong cách của riêng bạn.</p>
+          <a class="footer-about-link" href="${pageContext.request.contextPath}/#about">Câu chuyện H2T <span aria-hidden="true">↗</span></a>
+        </section>
+        <nav class="footer-column" aria-labelledby="footer-guide-title">
+          <h2 id="footer-guide-title">Khám phá & hướng dẫn</h2>
+          <ul>
+          <li><a href="${pageContext.request.contextPath}/#collection">Khám phá bộ sưu tập</a></li>
+          <li><a href="${pageContext.request.contextPath}/#shirts">Phong cách sơ mi</a></li>
+          <li><a href="${pageContext.request.contextPath}/#polos">Phối đồ cùng polo</a></li>
+          <li><a href="${pageContext.request.contextPath}/#trousers">Chọn quần dài</a></li>
           <c:if test="${empty pageContext.request.userPrincipal}">
-            <a href="${pageContext.request.contextPath}/login">Đăng nhập</a>
-            <a href="${pageContext.request.contextPath}/register">Tạo tài khoản</a>
+            <li><a href="${pageContext.request.contextPath}/register">Đăng ký thành viên</a></li>
+            <li><a href="${pageContext.request.contextPath}/login">Đăng nhập tài khoản</a></li>
           </c:if>
+          <li><a href="${pageContext.request.contextPath}/forgot-password">Hỗ trợ mật khẩu</a></li>
+          </ul>
         </nav>
+        <section class="footer-column" aria-labelledby="footer-policy-title">
+          <h2 id="footer-policy-title">Chính sách</h2>
+          <ul class="footer-pending-list">
+            <li>Chính sách bảo mật</li>
+            <li>Điều khoản sử dụng</li>
+            <li>Giao hàng & thanh toán</li>
+            <li>Đổi trả & hoàn tiền</li>
+            <li>Chăm sóc khách hàng</li>
+          </ul>
+          <p class="footer-note">Nội dung chính sách đang được cập nhật.</p>
+        </section>
+        <section class="footer-column footer-contact" aria-labelledby="footer-contact-title">
+          <h2 id="footer-contact-title">Kết nối với H2T</h2>
+          <p>Luôn sẵn sàng cho một diện mạo mới.</p>
+          <div class="footer-contact-note"><i class="bi bi-chat-square-text" aria-hidden="true"></i><p>Địa chỉ cửa hàng và kênh liên hệ chính thức sẽ được cập nhật tại đây.</p></div>
+          <a class="footer-explore" href="${pageContext.request.contextPath}/#collection">Tìm cảm hứng phối đồ <span aria-hidden="true">↗</span></a>
+          <span class="footer-signature">ĐƠN GIẢN. ĐÚNG GU.</span>
+        </section>
       </div>
-      <div class="footer-bottom">
+    </div>
+    <div class="footer-lower">
+      <div class="container app-container footer-lower-grid">
+        <div><span class="footer-small-title">H2T MENSWEAR</span><p>Phong cách của bạn. Mỗi ngày.</p></div>
+        <div class="footer-style-tags" aria-label="Phong cách H2T"><span>MINIMAL</span><span>EVERYDAY</span><span>YOURSELF</span></div>
+        <a class="footer-back-top" href="#">Về đầu trang <i class="bi bi-arrow-up" aria-hidden="true"></i></a>
+      </div>
+      <div class="container app-container footer-bottom">
         <span>&copy; 2026 H2T Menswear</span>
-        <span>Thiết kế cho trải nghiệm mua sắm hiện đại.</span>
+        <span>Ít hơn. Chất hơn.</span>
       </div>
     </div>
   </footer>

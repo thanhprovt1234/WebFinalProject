@@ -55,14 +55,33 @@
           <li class="nav-item">
             <a class="nav-link nav-new" href="${pageContext.request.contextPath}/#collection">BỘ SƯU TẬP</a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" href="${pageContext.request.contextPath}/#shirts">SƠ MI</a>
+          <li class="nav-item category-dropdown">
+            <button class="nav-link category-toggle" type="button" aria-expanded="false" aria-controls="nav-shirts">ÁO <i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+            <ul class="category-submenu" id="nav-shirts" hidden>
+              <li>Áo Thun Cổ Tròn</li>
+              <li>Áo Thun Cổ Polo</li>
+              <li>Áo Thun TankTop</li>
+              <li>Áo Sơ Mi</li>
+              <li>Áo Khoác</li>
+            </ul>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" href="${pageContext.request.contextPath}/#polos">POLO</a>
+          <li class="nav-item category-dropdown">
+            <button class="nav-link category-toggle" type="button" aria-expanded="false" aria-controls="nav-trousers">QUẦN <i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+            <ul class="category-submenu" id="nav-trousers" hidden>
+              <li>Quần Tây</li>
+              <li>Quần Dài</li>
+              <li>Quần Đùi</li>
+              <li>Quần Lót</li>
+            </ul>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" href="${pageContext.request.contextPath}/#trousers">QUẦN</a>
+          <li class="nav-item category-dropdown">
+            <button class="nav-link category-toggle" type="button" aria-expanded="false" aria-controls="nav-jeans">JEAN <i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+            <ul class="category-submenu" id="nav-jeans" hidden>
+              <li>Quần Jeans</li>
+              <li>Quần Đùi Jean</li>
+              <li>Áo Khoác Jean</li>
+              <li>Áo Sơ Mi Jean</li>
+            </ul>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="${pageContext.request.contextPath}/#about">VỀ H2T</a>
