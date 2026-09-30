@@ -70,6 +70,19 @@
     </c:otherwise>
   </c:choose>
 
+  <c:if test="${bodyClass != 'auth-page'}">
+<dialog id="cart-dialog" class="cart-dialog" data-image-base="${pageContext.request.contextPath}/images/products/ao-thun-co-tron/" data-api="${pageContext.request.contextPath}/api/cart" data-authenticated="${not empty pageContext.request.userPrincipal}" aria-labelledby="cart-title">
+  <div class="cart-heading"><h2 id="cart-title">Giỏ hàng của bạn</h2><button type="button" id="close-cart" aria-label="Đóng giỏ hàng">×</button></div>
+  <p id="shared-cart-status" role="status"></p>
+  <p id="cart-login" hidden><a href="${pageContext.request.contextPath}/login">Đăng nhập</a> để lưu và xem giỏ hàng của bạn trên mọi thiết bị.</p>
+  <div id="cart-items"></div>
+  <button type="button" id="cart-retry" hidden>Tải lại giỏ hàng</button>
+  <p class="cart-total">Tổng cộng: <strong id="cart-total">0 VNĐ</strong></p>
+  <p class="detail-local-note">Giỏ hàng được lưu theo tài khoản. Chưa hỗ trợ thanh toán.</p>
+</dialog>
+  <script src="${pageContext.request.contextPath}/js/cart.js"></script>
+  </c:if>
+
   <script
     src="${pageContext.request.contextPath}/js/vendor/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"

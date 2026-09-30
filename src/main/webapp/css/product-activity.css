@@ -1,0 +1,16 @@
+.activity-nav { display: flex; gap: 12px 24px; flex-wrap: wrap; margin: 18px 0 24px; font-size: 14px; }
+.activity-nav a { padding: 8px 0; }
+.activity-nav a[aria-current] { border-bottom: 2px solid #222; font-weight: 600; }
+.activity-shell h1 { font-size: 28px; margin: 24px 0 12px; }
+.activity-summary, .activity-login { font-size: 13px; color: #666; }
+.activity-status { color: #25673e; font-size: 13px; margin: 12px 0; }
+.favorite-form { margin: 0 0 16px; }
+.favorite-button { display: inline-flex; gap: 9px; align-items: center; background: white; border: 1px solid #bbb; border-radius: 4px; padding: 10px 12px; font-size: 13px; }
+.favorite-button[aria-pressed="true"] { color: #9d263d; border-color: #dba0ad; background: #fff6f8; }
+.favorite-button:hover { border-color: #222; }
+.favorite-button:focus-visible { outline: 2px solid #007eaf; outline-offset: 3px; }
+.activity-unavailable { display: grid; align-content: center; text-align: center; aspect-ratio: 3 / 4; background: #f4f4f4; padding: 20px; margin-bottom: 16px; font-size: 14px; }
+.activity-unavailable i { font-size: 36px; }
+.activity-pagination { display: flex; justify-content: center; gap: 20px; align-items: center; flex-wrap: wrap; margin-top: 32px; font-size: 14px; }
+.activity-pagination a { padding: 10px 12px; border: 1px solid #ccc; }
+@media(max-width: 767px) { .activity-shell h1 { font-size: 23px; } .activity-shell .product-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }

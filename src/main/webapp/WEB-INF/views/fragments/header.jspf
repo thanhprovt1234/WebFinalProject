@@ -5,6 +5,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="${_csrf.token}">
+  <meta name="csrf-header" content="${_csrf.headerName}">
   <meta name="description" content="${pageDescription}">
   <title><c:out value="${pageTitle}" /> | H2T</title>
   <link
@@ -19,6 +21,14 @@
   >
   <link href="${pageContext.request.contextPath}/css/app.css" rel="stylesheet">
   <link href="${pageContext.request.contextPath}/css/fashion-theme.css" rel="stylesheet">
+  <link href="${pageContext.request.contextPath}/css/product-activity.css" rel="stylesheet">
+  <c:if test="${bodyClass == 'profile-page'}"><link href="${pageContext.request.contextPath}/css/profile.css" rel="stylesheet"></c:if>
+  <c:if test="${bodyClass == 'catalog-page' || bodyClass == 'product-page'}">
+    <link href="${pageContext.request.contextPath}/css/catalog.css" rel="stylesheet">
+  </c:if>
+  <c:if test="${bodyClass == 'product-page'}">
+    <link href="${pageContext.request.contextPath}/css/product-detail.css" rel="stylesheet">
+  </c:if>
 </head>
 <body class="${bodyClass}">
   <a class="skip-link" href="#main-content">Đi đến nội dung chính</a>
@@ -58,7 +68,7 @@
           <li class="nav-item category-dropdown">
             <button class="nav-link category-toggle" type="button" aria-expanded="false" aria-controls="nav-shirts">ÁO <i class="bi bi-chevron-down" aria-hidden="true"></i></button>
             <ul class="category-submenu" id="nav-shirts" hidden>
-              <li>Áo Thun Cổ Tròn</li>
+              <li><a class="category-menu-link" href="${pageContext.request.contextPath}/collections/ao-thun-co-tron" <c:if test="${bodyClass == 'catalog-page'}">aria-current="page"</c:if>>Áo Thun Cổ Tròn</a></li>
               <li>Áo Thun Cổ Polo</li>
               <li>Áo Thun TankTop</li>
               <li>Áo Sơ Mi</li>
@@ -91,10 +101,10 @@
         <div class="nav-actions">
           <c:choose>
             <c:when test="${not empty pageContext.request.userPrincipal}">
-              <span class="user-chip">
+              <a class="user-chip" href="${pageContext.request.contextPath}/profile" aria-label="Thông tin tài khoản và địa chỉ nhận hàng">
                 <i class="bi bi-person-circle" aria-hidden="true"></i>
                 <c:out value="${pageContext.request.userPrincipal.name}" />
-              </span>
+              </a>
               <form action="${pageContext.request.contextPath}/logout" method="post" class="m-0">
                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
                 <button type="submit" class="btn btn-outline-dark btn-sm rounded-pill px-3">Đăng xuất</button>
@@ -107,6 +117,9 @@
               </a>
             </c:otherwise>
           </c:choose>
+          <button type="button" class="nav-cart" data-open-cart aria-label="Giỏ hàng, 0 sản phẩm" aria-haspopup="dialog" aria-controls="cart-dialog">
+            <i class="bi bi-bag" aria-hidden="true"></i><span class="nav-cart-count" data-cart-count aria-hidden="true">0</span>
+          </button>
         </div>
       </div>
         </c:otherwise>

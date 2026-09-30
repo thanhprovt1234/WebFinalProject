@@ -19,6 +19,8 @@ public class SecurityConfig {
                                                 .permitAll()
                                                 .requestMatchers(
                                                                 "/",
+                                                                "/collections/ao-thun-co-tron",
+                                                                "/products/*",
                                                                 "/login",
                                                                 "/register",
                                                                 "/forgot-password",
@@ -29,6 +31,14 @@ public class SecurityConfig {
                                                                 "/images/**")
                                                 .permitAll()
                                                 .anyRequest().authenticated())
+                                .exceptionHandling(errors -> errors.authenticationEntryPoint((request, response, exception) -> {
+                                        if (request.getServletPath().startsWith("/api/")) {
+                                                response.sendError(401);
+                                        } else {
+                                                new org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint("/login")
+                                                        .commence(request, response, exception);
+                                        }
+                                }))
                                 .formLogin(form -> form
                                                 .loginPage("/login")
                                                 .loginProcessingUrl("/login")
