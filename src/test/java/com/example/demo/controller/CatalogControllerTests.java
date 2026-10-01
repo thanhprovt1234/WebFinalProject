@@ -66,7 +66,7 @@ class CatalogControllerTests {
     void searchesNamesWithoutAccentsAndCombinesWithSorting() {
         var matches = catalogService.getCrewNeckProducts("price-desc", "  AO THUN  ");
         assertThat(matches).hasSize(8);
-        assertThat(matches.getFirst().get("price")).isEqualTo(199000);
+        assertThat(matches.getFirst().get("price")).isEqualTo(new java.math.BigDecimal("199000.00"));
         assertThat(catalogService.getCrewNeckProducts("featured", "ghi dam"))
                 .singleElement().satisfies(p -> assertThat(p.get("name").toString()).contains("GHI ĐẬM"));
         assertThat(catalogService.getCrewNeckProducts("featured", "khong-co-san-pham")).isEmpty();
@@ -95,8 +95,8 @@ class CatalogControllerTests {
         var ascending = catalogService.getCrewNeckProducts("price-asc");
         var descending = catalogService.getCrewNeckProducts("price-desc");
         assertThat(ascending).containsExactlyInAnyOrderElementsOf(descending);
-        assertThat(ascending.stream().map(p -> (Integer) p.get("price")).toList()).isSorted();
-        assertThat(descending.getFirst().get("price")).isEqualTo(199000);
-        assertThat(descending.getLast().get("price")).isEqualTo(99000);
+        assertThat(ascending.stream().map(p -> (java.math.BigDecimal) p.get("price")).toList()).isSorted();
+        assertThat(descending.getFirst().get("price")).isEqualTo(new java.math.BigDecimal("199000.00"));
+        assertThat(descending.getLast().get("price")).isEqualTo(new java.math.BigDecimal("99000.00"));
     }
 }

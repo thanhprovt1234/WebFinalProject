@@ -16,6 +16,15 @@
   <div class="campaign-bottom"><span>H2T® — MADE FOR EVERY DAY</span><a href="#collection">CUỘN ĐỂ KHÁM PHÁ <span aria-hidden="true">↓</span></a></div>
 </section>
 <div class="brand-strip" aria-label="Tinh thần H2T"><span>THIẾT KẾ TINH GIẢN</span><span aria-hidden="true">✳</span><span>CHẤT LIỆU CHỌN LỌC</span><span aria-hidden="true">✳</span><span>PHONG CÁCH MỖI NGÀY</span><span aria-hidden="true">✳</span><span>ĐẬM CHẤT RIÊNG</span></div>
+<section class="catalog-shell" aria-labelledby="home-products-title">
+  <h2 id="home-products-title">Sản phẩm mới từ các shop</h2>
+  <div class="product-grid"><c:forEach var="product" items="${homeProducts}">
+    <c:url var="homeImage" value="${product.imageUrl}" />
+    <article class="catalog-product"><a class="product-photo product-link" href="${pageContext.request.contextPath}/products/${product.id}"><img src="<c:out value='${homeImage}' />" alt="<c:out value='${product.name}' />" loading="lazy" width="600" height="800"></a><h3><a class="product-link" href="${pageContext.request.contextPath}/products/${product.id}"><c:out value="${product.name}" /></a></h3><p class="catalog-shop"><c:out value="${product.shopName}" /></p><p class="product-price">${product.formattedPrice} VNĐ</p></article>
+  </c:forEach></div>
+  <c:if test="${empty homeProducts}"><p>Chưa có sản phẩm đang bán.</p></c:if>
+  <a href="${pageContext.request.contextPath}/collections">Xem tất cả sản phẩm →</a>
+</section>
 <section id="collection" class="editorial-section">
   <div class="editorial-heading collection-heading">
     <h2>Đơn giản mà <span>có gu.</span></h2>

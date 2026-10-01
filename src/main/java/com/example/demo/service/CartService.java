@@ -6,6 +6,8 @@ import com.example.demo.dto.CartAddRequest;
 import com.example.demo.repository.CartItemRepository;
 import com.example.demo.repository.UserRepository;
 import java.util.List;
+import java.math.BigDecimal;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,9 +15,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class CartService {
-    public record Line(Long id, String productId, String name, String image, String size,
-            int quantity, int price, long subtotal, boolean available) {}
-    public record CartView(List<Line> items, int count, long total) {}
+    public record Line(Long id, String productId, String name, String image, String size, String color,
+            int quantity, BigDecimal price, BigDecimal subtotal, boolean available, long stock) {}
+    public record CartView(List<Line> items, int count, BigDecimal total) {}
 
     private final CartItemRepository items;
     private final UserRepository users;
@@ -33,12 +35,15 @@ public class CartService {
     @Transactional
     public CartView add(String username, CartAddRequest request) {
         var user = user(username, true);
-        requireProduct(request.getProductId());
-        var item = items.findByUserIdAndCatalogProductIdAndSize(user.getId(), request.getProductId(), request.getSize())
+        var option = catalog.option(request.getProductId(), request.getSize(), request.getColor());
+        String color = (String) option.get("color");
+        var item = items.findByUserIdAndCatalogProductIdAndSizeAndColor(user.getId(), request.getProductId(), request.getSize(), color)
                 .orElseGet(CartItem::new);
         int quantity = item.getQuantity() + request.getQuantity();
         if (quantity > 99) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "Mỗi sản phẩm và size được thêm tối đa 99 sản phẩm.");
+        checkStock(option, quantity);
+        item.setColor(color);
         item.setUser(user);
         item.setCatalogProductId(request.getProductId());
         item.setSize(request.getSize());
@@ -51,7 +56,7 @@ public class CartService {
     public CartView update(String username, Long id, int quantity) {
         var user = user(username, true);
         var item = ownedItem(id, user.getId());
-        requireProduct(item.getCatalogProductId());
+        checkStock(catalog.option(item.getCatalogProductId(), item.getSize(), item.getColor()), quantity);
         item.setQuantity(quantity);
         items.flush();
         return view(user.getId());
@@ -76,21 +81,28 @@ public class CartService {
                 HttpStatus.NOT_FOUND, "Sản phẩm không còn trong giỏ hàng. Vui lòng tải lại giỏ."));
     }
 
-    private void requireProduct(String id) {
-        catalog.findProduct(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                "Sản phẩm không còn trong danh mục."));
+    private void checkStock(Map<String,Object> option, int quantity) {
+        if (quantity > (Long) option.get("stock")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "S\u1ed1 l\u01b0\u1ee3ng v\u01b0\u1ee3t qu\u00e1 t\u1ed3n kho hi\u1ec7n t\u1ea1i.");
     }
 
     private CartView view(Long userId) {
         var lines = items.findByUserIdOrderByIdAsc(userId).stream().map(item -> {
             var product = catalog.findProduct(item.getCatalogProductId());
-            int price = product.map(p -> (Integer) p.get("price")).orElse(0);
+            Map<String,Object> option = Map.of();
+            if (product.isPresent()) {
+                option = catalog.options(item.getCatalogProductId()).stream()
+                        .filter(v -> v.get("size").equals(item.getSize()) && v.get("color").equals(item.getColor()))
+                        .findFirst().orElse(Map.of());
+            }
+            BigDecimal price = (BigDecimal) option.getOrDefault("price", BigDecimal.ZERO);
+            long stock = (Long) option.getOrDefault("stock", 0L);
             return new Line(item.getId(), item.getCatalogProductId(),
                     product.map(p -> (String) p.get("name")).orElse("Sản phẩm không còn kinh doanh"),
-                    product.map(p -> (String) p.get("image")).orElse(""), item.getSize(), item.getQuantity(),
-                    price, (long) price * item.getQuantity(), product.isPresent());
+                    product.map(p -> (String) p.get("imageUrl")).orElse(""), item.getSize(), item.getColor(), item.getQuantity(),
+                    price, price.multiply(BigDecimal.valueOf(item.getQuantity())), !option.isEmpty(), stock);
         }).toList();
         return new CartView(lines, lines.stream().mapToInt(Line::quantity).sum(),
-                lines.stream().mapToLong(Line::subtotal).sum());
+                lines.stream().map(Line::subtotal).reduce(BigDecimal.ZERO, BigDecimal::add));
     }
 }

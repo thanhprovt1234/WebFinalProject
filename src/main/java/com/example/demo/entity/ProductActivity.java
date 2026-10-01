@@ -12,8 +12,8 @@ public class ProductActivity extends AuditableEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
-    @NotBlank @Size(max = 100)
-    @Column(name = "catalog_product_id", nullable = false, length = 100)
+    @NotBlank @Size(max = 200)
+    @Column(name = "catalog_product_id", nullable = false, length = 200)
     private String catalogProductId;
     @Column(nullable = false)
     private boolean favorite;

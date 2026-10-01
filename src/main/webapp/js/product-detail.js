@@ -22,7 +22,17 @@
     });
   });
   const quantity = document.querySelector("#quantity");
+  document.querySelectorAll('[name="size"]').forEach(option => option.addEventListener('change', () => {
+    const stock = Number(option.dataset.stock);
+    document.querySelector('#variant-stock').textContent = stock > 0 ? `Còn ${stock} sản phẩm` : 'Hết hàng';
+    document.querySelector('#variant-price').textContent = new Intl.NumberFormat('vi-VN').format(Number(option.dataset.price)) + ' VNĐ';
+    quantity.max = Math.max(1, Math.min(99, stock));
+    quantity.value = Math.min(Number(quantity.value), Number(quantity.max));
+    const submit = document.querySelector('#product-options button[type="submit"]');
+    submit.dataset.unavailable = String(stock === 0);
+    submit.disabled = stock === 0;
+  }));
   document.querySelectorAll("[data-step]").forEach(button => button.addEventListener("click", () => {
-    quantity.value = Math.min(99, Math.max(1, (Number(quantity.value) || 1) + Number(button.dataset.step)));
+    quantity.value = Math.min(Number(quantity.max), Math.max(1, (Number(quantity.value) || 1) + Number(button.dataset.step)));
   }));
 })();

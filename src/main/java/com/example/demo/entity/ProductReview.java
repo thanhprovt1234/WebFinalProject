@@ -11,7 +11,7 @@ import org.hibernate.annotations.Nationalized;
 public class ProductReview extends AuditableEntity {
     // The display catalog uses stable string IDs, independently of database products.
     @NotBlank
-    @Column(name = "catalog_product_id", nullable = false, length = 100)
+    @Column(name = "catalog_product_id", nullable = false, length = 200)
     private String catalogProductId;
 
     @NotNull

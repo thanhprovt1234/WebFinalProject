@@ -7,9 +7,9 @@ page. Lists are accessible from `/profile` and product detail links:
 - `/recently-viewed`: most recently viewed first; revisiting moves the product up.
 
 Both lists paginate at 20 products. The application derives names, images and prices
-from the current catalog. Removed products are shown as unavailable and can still be
-removed from favorites. This feature uses the current stable catalog string IDs;
-it does not migrate the catalog to database products.
+from the database catalog. Removed products are shown as unavailable and can still be
+removed from favorites. Stable product slugs preserve existing saved records; see
+[database-catalog.md](database-catalog.md) for the catalog migration.
 
 `product_activities` stores one row per account/product, with separate favorite and
 view timestamps. Removing a favorite preserves its view history. Favorite writes are

@@ -17,7 +17,7 @@
       <article class="catalog-product" data-activity-product="${product.id}">
         <c:choose>
           <c:when test="${product.available}">
-            <a class="product-photo product-link" href="${pageContext.request.contextPath}/products/${product.id}"><img src="${pageContext.request.contextPath}/images/products/ao-thun-co-tron/${product.image}" alt="<c:out value='${product.name}' />" width="600" height="800" loading="lazy"></a>
+            <a class="product-photo product-link" href="${pageContext.request.contextPath}/products/${product.id}"><img src="<c:out value="${product.imageUrl.startsWith('/') ? pageContext.request.contextPath.concat(product.imageUrl) : product.imageUrl}" />" alt="<c:out value='${product.name}' />" width="600" height="800" loading="lazy"></a>
             <h2><a class="product-link" href="${pageContext.request.contextPath}/products/${product.id}"><c:out value="${product.name}" /></a></h2>
             <p class="product-price">${product.formattedPrice} VNĐ</p>
           </c:when>

@@ -33,7 +33,7 @@ class SqlServerSchemaTests {
         try {
             var sources = new MetadataSources(registry);
             List.of(User.class, Role.class, Category.class, Product.class, ProductVariant.class,
-                    Store.class, Inventory.class, OrderEntity.class, OrderItem.class, Shop.class,
+                    Store.class, StoreManager.class, Inventory.class, OrderEntity.class, OrderItem.class, Shop.class,
                     ShopOrder.class, OrderStatusHistory.class, Shipment.class, Address.class, ProductReview.class, CartItem.class, ProductActivity.class)
                     .forEach(sources::addAnnotatedClass);
             var metadata = sources.buildMetadata();
@@ -46,7 +46,7 @@ class SqlServerSchemaTests {
 
         var ddl = script.toString().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
         for (var table : List.of("users", "roles", "user_roles", "categories", "products",
-                "product_variants", "stores", "inventories", "orders", "order_items", "shops",
+                "product_variants", "stores", "store_managers", "inventories", "orders", "order_items", "shops",
                 "shop_orders", "order_status_history", "shipments", "addresses", "product_reviews", "cart_items", "product_activities")) {
             assertThat(ddl).contains("create table " + table + " (");
         }
@@ -75,7 +75,7 @@ class SqlServerSchemaTests {
         assertThat(ddl).doesNotContain("create table user (", "create table order (", "on delete cascade");
         assertThat(ddl).contains("constraint uk_product_reviews_catalog_user unique (catalog_product_id, user_id)",
                 "constraint ck_product_reviews_rating check (rating between 1 and 5)", "comment nvarchar(2000)");
-        assertThat(ddl).contains("constraint uk_cart_items_user_product_size unique (user_id, catalog_product_id, size)",
+        assertThat(ddl).contains("constraint uk_cart_items_user_product_option unique (user_id, catalog_product_id, size, color)",
                 "constraint ck_cart_items_quantity check (quantity between 1 and 99)");
         assertThat(ddl).contains("status varchar(20)", "'new'", "'delivered'", "'return_requested'", "'refunded'", "'role_vendor'", "'role_shipper'");
 

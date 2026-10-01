@@ -5,11 +5,11 @@ account. Guests are prompted to sign in. Cart contents survive logout and are sh
 between devices. Adding the same catalog product and size increments its quantity;
 each line permits 1–99 units. The dialog supports quantity changes and removal.
 
-The application derives product names, images, prices and totals from `CatalogService`.
-Client-supplied prices and user IDs are ignored. The current catalog still uses stable
-TSV product IDs; this change does not introduce checkout, stock reservation or database
-product management. Products removed from the catalog remain removable from the cart
-and are excluded from its total.
+The application derives product names, images, prices and totals from the database via
+`CatalogService`. Client-supplied prices and user IDs are ignored. Lines now distinguish
+size and color, use variant prices, and enforce available branch stock. Stable product
+slugs preserve old saved records. This does not introduce checkout or stock reservation.
+See [database-catalog.md](database-catalog.md) for the newer migration and stock behavior.
 
 The old `h2t-cart-v1` browser storage is no longer read or written. It has no account
 ownership, so it is not automatically copied into a signed-in user's cart. Existing
@@ -33,7 +33,7 @@ CSRF protection apply. Form-encoded requests are used for POST/PATCH.
 | Method | Path | Fields |
 | --- | --- | --- |
 | GET | `/api/cart` | None |
-| POST | `/api/cart/items` | `productId`, `size`, `quantity` |
+| POST | `/api/cart/items` | `productId` (slug), `size`, `color`, `quantity` |
 | PATCH | `/api/cart/items/{id}` | `quantity` |
 | DELETE | `/api/cart/items/{id}` | None |
 

@@ -7,16 +7,16 @@
 <div class="detail-shell" data-product-id="${product.id}" data-view-url="${pageContext.request.contextPath}/api/products/${product.id}/viewed" data-signed-in="${not empty pageContext.request.userPrincipal}">
   <nav class="catalog-breadcrumb" aria-label="Đường dẫn">
     <a href="${pageContext.request.contextPath}/">Trang chủ</a><span>/</span>
-    <a href="${pageContext.request.contextPath}/collections/ao-thun-co-tron">Áo Thun Cổ Tròn</a><span>/</span>
+    <a href="${pageContext.request.contextPath}/collections?category=${product.categoryId}"><c:out value="${product.categoryName}" /></a><span>/</span>
     <span aria-current="page"><c:out value="${product.name}" /></span>
   </nav>
   <section class="detail-layout" aria-labelledby="detail-title">
     <div class="detail-gallery">
       <div class="gallery-thumbs" aria-label="Chế độ xem ảnh">
-        <button type="button" class="gallery-thumb" data-zoom="false" aria-pressed="true" aria-label="Xem toàn bộ áo"><img src="${pageContext.request.contextPath}/images/products/ao-thun-co-tron/${product.image}" alt="Toàn bộ áo"></button>
-        <button type="button" class="gallery-thumb thumb-zoom" data-zoom="true" aria-pressed="false" aria-label="Phóng to ảnh áo"><img src="${pageContext.request.contextPath}/images/products/ao-thun-co-tron/${product.image}" alt="Phóng to ảnh"></button>
+        <button type="button" class="gallery-thumb" data-zoom="false" aria-pressed="true" aria-label="Xem toàn bộ áo"><img src="<c:out value="${product.imageUrl.startsWith('/') ? pageContext.request.contextPath.concat(product.imageUrl) : product.imageUrl}" />" alt="Toàn bộ áo"></button>
+        <button type="button" class="gallery-thumb thumb-zoom" data-zoom="true" aria-pressed="false" aria-label="Phóng to ảnh áo"><img src="<c:out value="${product.imageUrl.startsWith('/') ? pageContext.request.contextPath.concat(product.imageUrl) : product.imageUrl}" />" alt="Phóng to ảnh"></button>
       </div>
-      <div class="gallery-stage"><img id="detail-image" src="${pageContext.request.contextPath}/images/products/ao-thun-co-tron/${product.image}" alt="<c:out value='${product.name}' />" width="600" height="800" fetchpriority="high"></div>
+      <div class="gallery-stage"><img id="detail-image" src="<c:out value="${product.imageUrl.startsWith('/') ? pageContext.request.contextPath.concat(product.imageUrl) : product.imageUrl}" />" alt="<c:out value='${product.name}' />" width="600" height="800" fetchpriority="high"></div>
     </div>
     <div class="detail-info">
       <h1 id="detail-title"><c:out value="${product.name}" /></h1>
@@ -37,28 +37,30 @@
       <p class="option-heading">Màu: <strong><c:out value="${product.color}" /></strong></p>
       <div class="color-options">
         <c:forEach var="color" items="${colors}">
-          <a href="${pageContext.request.contextPath}/products/${color.id}" class="color-option" title="<c:out value='${color.color}' />" aria-label="<c:out value='${color.color}' />" <c:if test="${color.id == product.id}">aria-current="true"</c:if>><img src="${pageContext.request.contextPath}/images/products/ao-thun-co-tron/${color.image}" alt="<c:out value='${color.color}' />"></a>
+          <a href="${pageContext.request.contextPath}/products/${color.id}" class="color-option" title="<c:out value='${color.color}' />" aria-label="<c:out value='${color.color}' />" <c:if test="${color.id == product.id}">aria-current="true"</c:if>><img src="<c:out value="${color.imageUrl.startsWith('/') ? pageContext.request.contextPath.concat(color.imageUrl) : color.imageUrl}" />" alt="<c:out value='${color.color}' />"></a>
         </c:forEach>
       </div>
-      <div class="detail-pricing"><del>${product.formattedOriginalPrice} VNĐ</del><div><strong>${product.formattedPrice} VNĐ</strong><span>-${product.discount}%</span></div></div>
+      <p>Shop: <c:out value="${product.shopName}" /> · <c:out value="${product.categoryName}" /></p>
+      <div class="detail-pricing"><div><strong id="variant-price">${product.formattedPrice} VNĐ</strong></div></div>
       <p class="shipping-line"><i class="bi bi-truck" aria-hidden="true"></i> Miễn phí vận chuyển cho đơn từ 500.000 VNĐ</p>
-      <form id="product-options" data-name="<c:out value='${product.name}' />" data-price="${product.price}" data-image="${pageContext.request.contextPath}/images/products/ao-thun-co-tron/${product.image}">
-        <fieldset class="size-options"><legend>Chọn size</legend><div>
-          <c:forTokens var="size" items="S,M,L,XL,XXL" delims=","><label><input type="radio" name="size" value="${size}" required><span>${size}</span></label></c:forTokens>
+      <form id="product-options" data-name="<c:out value='${product.name}' />" data-price="${product.price}" data-image="<c:out value="${product.imageUrl.startsWith('/') ? pageContext.request.contextPath.concat(product.imageUrl) : product.imageUrl}" />">
+        <fieldset class="size-options"><legend>Chọn màu và size</legend><div>
+          <c:forEach var="variant" items="${variants}"><label><input type="radio" name="size" value="<c:out value='${variant.size}' />" data-color="<c:out value='${variant.color}' />" data-price="${variant.price}" data-stock="${variant.stock}" required><span><c:out value="${variant.color}" /> · <c:out value="${variant.size}" /></span></label></c:forEach>
         </div></fieldset>
+        <p id="variant-stock" role="status">${empty variants ? 'Sản phẩm chưa có phiên bản để bán.' : 'Chọn màu và size để xem số lượng còn hàng.'}</p>
         <details class="size-guide"><summary>Hướng dẫn chọn size</summary><p>Chọn size bạn thường mặc. Nếu thích phom rộng, cân nhắc tăng một size. Liên hệ cửa hàng để xác nhận số đo trước khi đặt hàng.</p></details>
         <div class="quantity-row"><label for="quantity">Số lượng:</label><div class="quantity-control"><button type="button" data-step="-1" aria-label="Giảm số lượng">−</button><input id="quantity" name="quantity" type="number" min="1" max="99" value="1" required><button type="button" data-step="1" aria-label="Tăng số lượng">+</button></div></div>
-        <button type="submit" class="detail-primary">THÊM VÀO GIỎ HÀNG</button>
+        <button type="submit" class="detail-primary" data-unavailable="true" disabled>THÊM VÀO GIỎ HÀNG</button>
         <p id="cart-status" role="status"></p>
       </form>
       <button type="button" id="open-cart" class="detail-text-button">Xem giỏ hàng (<span id="cart-count">0</span>)</button>
       <p class="detail-local-note">Đăng nhập để lưu giỏ hàng và xem lại trên mọi thiết bị. Chưa hỗ trợ đặt hàng và thanh toán.</p>
       <div class="detail-benefits"><p><i class="bi bi-truck" aria-hidden="true"></i> Miễn phí giao hàng cho đơn từ 500K</p><p><i class="bi bi-palette" aria-hidden="true"></i> Nhiều màu sắc, dễ phối mỗi ngày</p><p><i class="bi bi-heart" aria-hidden="true"></i> Phong cách đơn giản cùng H2T</p></div>
-      <details class="product-description"><summary>Thông tin sản phẩm</summary><p>Áo thun cổ tròn tay ngắn, dễ kết hợp cùng jeans, quần dài hoặc quần short.</p><p>Màu: <c:out value="${product.color}" />. Giặt nhẹ với quần áo cùng màu, tránh sử dụng chất tẩy mạnh.</p></details>
+      <details class="product-description"><summary>Thông tin sản phẩm</summary><p><c:out value="${product.description}" default="" /></p></details>
     </div>
   </section>
   <section class="detail-related" aria-labelledby="related-title"><h2 id="related-title">GỢI Ý SẢN PHẨM</h2><div class="product-grid">
-    <c:forEach var="related" items="${relatedProducts}"><article class="catalog-product"><a class="product-photo product-link" href="${pageContext.request.contextPath}/products/${related.id}"><img src="${pageContext.request.contextPath}/images/products/ao-thun-co-tron/${related.image}" alt="<c:out value='${related.name}' />" width="600" height="800" loading="lazy"></a><h3><a class="product-link" href="${pageContext.request.contextPath}/products/${related.id}"><c:out value="${related.name}" /></a></h3><div class="product-prices"><span class="product-price">${related.formattedPrice} VNĐ</span><del>${related.formattedOriginalPrice} VNĐ</del></div></article></c:forEach>
+    <c:forEach var="related" items="${relatedProducts}"><article class="catalog-product"><a class="product-photo product-link" href="${pageContext.request.contextPath}/products/${related.id}"><img src="<c:out value="${related.imageUrl.startsWith('/') ? pageContext.request.contextPath.concat(related.imageUrl) : related.imageUrl}" />" alt="<c:out value='${related.name}' />" width="600" height="800" loading="lazy"></a><h3><a class="product-link" href="${pageContext.request.contextPath}/products/${related.id}"><c:out value="${related.name}" /></a></h3><div class="product-prices"><span class="product-price">${related.formattedPrice} VNĐ</span></div></article></c:forEach>
   </div></section>
   <section class="detail-reviews" aria-labelledby="reviews-title">
     <h2 id="reviews-title">Đánh giá sản phẩm</h2>

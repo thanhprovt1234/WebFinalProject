@@ -4,23 +4,29 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 
 @Entity
-@Table(name = "cart_items", uniqueConstraints = @UniqueConstraint(name = "uk_cart_items_user_product_size",
-        columnNames = {"user_id", "catalog_product_id", "size"}), check = {
-        @CheckConstraint(name = "ck_cart_items_quantity", constraint = "quantity between 1 and 99"),
-        @CheckConstraint(name = "ck_cart_items_size", constraint = "size in ('S','M','L','XL','XXL')")})
+@Table(name = "cart_items", uniqueConstraints = @UniqueConstraint(name = "uk_cart_items_user_product_option",
+        columnNames = {"user_id", "catalog_product_id", "size", "color"}), check = {
+        @CheckConstraint(name = "ck_cart_items_quantity", constraint = "quantity between 1 and 99")})
 public class CartItem extends AuditableEntity {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @NotBlank @Size(max = 100)
-    @Column(name = "catalog_product_id", nullable = false, length = 100)
+    @NotBlank @Size(max = 200)
+    @Column(name = "catalog_product_id", nullable = false, length = 200)
     private String catalogProductId;
 
-    @NotNull @Pattern(regexp = "S|M|L|XL|XXL")
-    @Column(nullable = false, length = 5)
+    @NotBlank @Size(max = 10)
+    @Column(nullable = false, length = 10)
     private String size;
+
+    @NotNull @Size(max = 50)
+    @org.hibernate.annotations.Nationalized
+    @Column(nullable = false, length = 50)
+    private String color = "";
+    public String getColor() { return color; }
+    public void setColor(String color) { this.color = color; }
 
     @Min(1) @Max(99)
     @Column(nullable = false)

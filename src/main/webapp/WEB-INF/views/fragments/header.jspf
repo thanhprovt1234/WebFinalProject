@@ -23,7 +23,7 @@
   <link href="${pageContext.request.contextPath}/css/fashion-theme.css" rel="stylesheet">
   <link href="${pageContext.request.contextPath}/css/product-activity.css" rel="stylesheet">
   <c:if test="${bodyClass == 'profile-page'}"><link href="${pageContext.request.contextPath}/css/profile.css" rel="stylesheet"></c:if>
-  <c:if test="${bodyClass == 'catalog-page' || bodyClass == 'product-page'}">
+  <c:if test="${bodyClass == 'catalog-page' || bodyClass == 'product-page' || bodyClass == 'home-page'}">
     <link href="${pageContext.request.contextPath}/css/catalog.css" rel="stylesheet">
   </c:if>
   <c:if test="${bodyClass == 'product-page'}">
@@ -63,34 +63,12 @@
       <div class="collapse navbar-collapse" id="mainNavigation">
         <ul class="navbar-nav mx-auto mb-3 mb-lg-0">
           <li class="nav-item">
-            <a class="nav-link nav-new" href="${pageContext.request.contextPath}/#collection">BỘ SƯU TẬP</a>
+            <a class="nav-link nav-new" href="${pageContext.request.contextPath}/collections">SẢN PHẨM</a>
           </li>
           <li class="nav-item category-dropdown">
-            <button class="nav-link category-toggle" type="button" aria-expanded="false" aria-controls="nav-shirts">ÁO <i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+            <button class="nav-link category-toggle" type="button" aria-expanded="false" aria-controls="nav-shirts">DANH MỤC <i class="bi bi-chevron-down" aria-hidden="true"></i></button>
             <ul class="category-submenu" id="nav-shirts" hidden>
-              <li><a class="category-menu-link" href="${pageContext.request.contextPath}/collections/ao-thun-co-tron" <c:if test="${bodyClass == 'catalog-page'}">aria-current="page"</c:if>>Áo Thun Cổ Tròn</a></li>
-              <li>Áo Thun Cổ Polo</li>
-              <li>Áo Thun TankTop</li>
-              <li>Áo Sơ Mi</li>
-              <li>Áo Khoác</li>
-            </ul>
-          </li>
-          <li class="nav-item category-dropdown">
-            <button class="nav-link category-toggle" type="button" aria-expanded="false" aria-controls="nav-trousers">QUẦN <i class="bi bi-chevron-down" aria-hidden="true"></i></button>
-            <ul class="category-submenu" id="nav-trousers" hidden>
-              <li>Quần Tây</li>
-              <li>Quần Dài</li>
-              <li>Quần Đùi</li>
-              <li>Quần Lót</li>
-            </ul>
-          </li>
-          <li class="nav-item category-dropdown">
-            <button class="nav-link category-toggle" type="button" aria-expanded="false" aria-controls="nav-jeans">JEAN <i class="bi bi-chevron-down" aria-hidden="true"></i></button>
-            <ul class="category-submenu" id="nav-jeans" hidden>
-              <li>Quần Jeans</li>
-              <li>Quần Đùi Jean</li>
-              <li>Áo Khoác Jean</li>
-              <li>Áo Sơ Mi Jean</li>
+              <c:forEach var="category" items="${catalogCategories}"><li><a class="category-menu-link" href="${pageContext.request.contextPath}/collections?category=${category.id}"><c:out value="${category.name}" /></a></li></c:forEach>
             </ul>
           </li>
           <li class="nav-item">

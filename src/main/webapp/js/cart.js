@@ -32,14 +32,15 @@
       const row = document.createElement("div"); row.className = "cart-item";
       if (item.image) {
         const image = document.createElement("img");
-        image.src = dialog.dataset.imageBase + item.image; image.alt = item.name;
+        image.src = item.image.startsWith("/") ? dialog.dataset.context + item.image : item.image; image.alt = item.name;
         row.append(image);
       }
       const info = document.createElement("div"); info.className = "cart-item-info";
       const name = document.createElement("p"); name.textContent = item.name;
       const details = document.createElement("p");
-      details.textContent = `Size ${item.size} · ${item.available ? money(item.price) + " / sản phẩm" : "Không còn kinh doanh"}`;
+      details.textContent = `${item.color} · Size ${item.size} · ${item.available ? money(item.price) + " / sản phẩm" : "Không còn kinh doanh"}`;
       const subtotal = document.createElement("p"); subtotal.textContent = "Thành tiền: " + money(item.subtotal);
+      if (item.quantity > item.stock) subtotal.textContent += ` · Chỉ còn ${item.stock} sản phẩm`;
       const controls = document.createElement("div"); controls.className = "cart-item-controls";
       const label = document.createElement("label"); label.textContent = "Số lượng ";
       const input = document.createElement("input");
@@ -101,7 +102,7 @@
     if (!authenticated) { render(); status("Vui lòng đăng nhập để thêm sản phẩm."); dialog.showModal(); return; }
     if (!form.reportValidity()) return;
     const values = new FormData(form);
-    mutate("/items", "POST", { productId: root.dataset.productId, size: values.get("size"), quantity: values.get("quantity") },
+    mutate("/items", "POST", { productId: root.dataset.productId, size: values.get("size"), color: form.querySelector('[name="size"]:checked').dataset.color, quantity: values.get("quantity") },
       "Đã thêm sản phẩm vào giỏ hàng.");
   });
   document.querySelectorAll("[data-open-cart], #open-cart").forEach(button => button.addEventListener("click", () => {

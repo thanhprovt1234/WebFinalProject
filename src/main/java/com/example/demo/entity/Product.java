@@ -27,6 +27,17 @@ import org.hibernate.annotations.Nationalized;
         @UniqueConstraint(name = "uk_products_slug", columnNames = {"slug"})
 }, check = @CheckConstraint(name = "ck_products_values", constraint = "base_price >= 0"))
 public class Product extends AuditableEntity {
+    @Column(name = "search_name", nullable = false, length = 200)
+    private String searchName = "";
+
+    @jakarta.persistence.PrePersist
+    @jakarta.persistence.PreUpdate
+    private void indexName() { searchName = normalize(name == null ? "" : name); }
+
+    public static String normalize(String value) {
+        return java.text.Normalizer.normalize(value.strip().toLowerCase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "").replace('đ', 'd').replaceAll("\\s+", " ");
+    }
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

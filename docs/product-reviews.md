@@ -7,9 +7,9 @@ the form cannot select another author. CSRF protection remains enabled and JSP e
 comments and names. Dates are displayed in Vietnam time.
 
 Reviews persist in `product_reviews`, with a unique `(catalog_product_id, user_id)`
-constraint and a database check for the rating range. The current display catalog
-uses TSV IDs such as `ao-thun-01`, so reviews reference that stable key, not the
-independent database `products` table. Keep these IDs stable when editing the catalog.
+constraint and a database check for the rating range. Reviews resolve stable product
+slugs such as `ao-thun-01` against the database catalog. Keep these slugs stable when
+editing products. See [database-catalog.md](database-catalog.md) for the migration.
 
 With the `dev` profile, Hibernate can create the new table if the database login has
 DDL permissions. Environments using `ddl-auto=none` or `validate` must apply

@@ -71,7 +71,7 @@
   </c:choose>
 
   <c:if test="${bodyClass != 'auth-page'}">
-<dialog id="cart-dialog" class="cart-dialog" data-image-base="${pageContext.request.contextPath}/images/products/ao-thun-co-tron/" data-api="${pageContext.request.contextPath}/api/cart" data-authenticated="${not empty pageContext.request.userPrincipal}" aria-labelledby="cart-title">
+<dialog id="cart-dialog" class="cart-dialog" data-image-base="${pageContext.request.contextPath}/images/products/ao-thun-co-tron/" data-context="${pageContext.request.contextPath}" data-api="${pageContext.request.contextPath}/api/cart" data-authenticated="${not empty pageContext.request.userPrincipal}" aria-labelledby="cart-title">
   <div class="cart-heading"><h2 id="cart-title">Giỏ hàng của bạn</h2><button type="button" id="close-cart" aria-label="Đóng giỏ hàng">×</button></div>
   <p id="shared-cart-status" role="status"></p>
   <p id="cart-login" hidden><a href="${pageContext.request.contextPath}/login">Đăng nhập</a> để lưu và xem giỏ hàng của bạn trên mọi thiết bị.</p>

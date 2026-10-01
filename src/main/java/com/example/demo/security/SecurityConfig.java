@@ -9,17 +9,23 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 public class SecurityConfig {
 
         @Bean
-        SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        SecurityFilterChain securityFilterChain(HttpSecurity http, CustomUserDetailsService users) throws Exception {
                 http
                                 .authorizeHttpRequests(auth -> auth
                                                 .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR)
                                                 .permitAll()
+                                                .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
+                                                .requestMatchers("/seller", "/seller/**").hasAnyRole("VENDOR", "ADMIN")
+                                                .requestMatchers("/manager", "/manager/**").hasAnyRole("MANAGER", "ADMIN")
+                                                .requestMatchers("/shipper", "/shipper/**").hasAnyRole("SHIPPER", "ADMIN")
                                                 .requestMatchers(
                                                                 "/",
                                                                 "/collections/ao-thun-co-tron",
+                                                                "/collections",
                                                                 "/products/*",
                                                                 "/login",
                                                                 "/register",
@@ -31,7 +37,16 @@ public class SecurityConfig {
                                                                 "/images/**")
                                                 .permitAll()
                                                 .anyRequest().authenticated())
-                                .exceptionHandling(errors -> errors.authenticationEntryPoint((request, response, exception) -> {
+                                .addFilterBefore(new CurrentRolesFilter(users), org.springframework.security.web.access.intercept.AuthorizationFilter.class)
+                                .exceptionHandling(errors -> errors.accessDeniedHandler((request, response, exception) -> {
+                                        response.setStatus(403);
+                                        if (request.getServletPath().startsWith("/api/")) {
+                                                response.setContentType("application/json");
+                                                response.getWriter().write("{\"error\":\"FORBIDDEN\"}");
+                                        } else {
+                                                request.getRequestDispatcher("/WEB-INF/views/workspace/forbidden.jsp").forward(request, response);
+                                        }
+                                }).authenticationEntryPoint((request, response, exception) -> {
                                         if (request.getServletPath().startsWith("/api/")) {
                                                 response.sendError(401);
                                         } else {

@@ -30,4 +30,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths="roles")
+    org.springframework.data.domain.Page<User> findByUsernameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
+            String username,String fullName,org.springframework.data.domain.Pageable pageable);
+    @Query("select count(u) from User u join u.roles r where r.name=:role and u.enabled=true")
+    long countEnabledRole(@Param("role") com.example.demo.entity.RoleName role);
 }

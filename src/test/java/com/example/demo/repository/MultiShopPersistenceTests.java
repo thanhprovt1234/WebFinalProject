@@ -83,7 +83,8 @@ class MultiShopPersistenceTests {
         assertThat(stores.findByShopId(shop.getId())).hasSize(2)
                 .allSatisfy(s -> assertThat(s.getShop().getId()).isEqualTo(shop.getId()));
         assertThat(em.find(ProductVariant.class, variant.getId()).getProduct().getVariants()).hasSize(2);
-        var stocks = em.createQuery("select i from Inventory i", Inventory.class).getResultList();
+        var stocks = em.createQuery("select i from Inventory i where i.productVariant.id = :variantId", Inventory.class)
+                .setParameter("variantId",variant.getId()).getResultList();
         assertThat(stocks).extracting(Inventory::getQuantity).containsExactlyInAnyOrder(10, 3);
         assertThat(stocks).allSatisfy(i -> assertThat(i.getStore().getShop().getId())
                 .isEqualTo(i.getProductVariant().getProduct().getShop().getId()));

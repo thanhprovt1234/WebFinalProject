@@ -14,9 +14,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 public class AuthController {
 
     private final AuthService authService;
+    private final com.example.demo.service.CatalogService catalog;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, com.example.demo.service.CatalogService catalog) {
         this.authService = authService;
+        this.catalog = catalog;
     }
 
     @GetMapping("/login")
@@ -52,7 +54,8 @@ public class AuthController {
     }
 
     @GetMapping("/")
-    public String home() {
+    public String home(Model model) {
+        model.addAttribute("homeProducts",catalog.search("newest","",null,"",0).getContent());
         return "home";
     }
 
