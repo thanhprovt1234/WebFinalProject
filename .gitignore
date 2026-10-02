@@ -41,3 +41,8 @@ application-local.properties
 application-local.yml
 application-local.yaml
 *.log
+
+### Private database backups ###
+/database/*.bak
+/database/*.mdf
+/database/*.ldf

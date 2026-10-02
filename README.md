@@ -1,5 +1,7 @@
 # H2T men's shirt store chain
 
+Chạy cả web và SQL Server bằng Docker Desktop: xem [README-Docker.md](README-Docker.md).
+
 Spring Boot 4.1.1, Java 26, Maven Wrapper 3.9.16, executable WAR.
 Root package: `com.example.demo`. The phase-2.5 multi-shop domain, JPA entities and repositories
 are available; business services, controllers and frontend are deferred.
