@@ -8,6 +8,7 @@
 <section class="profile-shell">
   <nav aria-label="Đường dẫn"><a href="${pageContext.request.contextPath}/">Trang chủ</a> / Tài khoản</nav>
   <h1>Tài khoản của tôi</h1>
+  <p><a href="${pageContext.request.contextPath}/orders">Đơn hàng của tôi →</a></p>
   <p><a href="${pageContext.request.contextPath}/workspace">Khu vực làm việc &amp; phân quyền →</a></p>
   <p class="profile-intro">Thông tin của bạn, sẵn sàng cho những lần mua sắm tiếp theo.</p>
   <nav class="activity-nav" aria-label="Sản phẩm của bạn"><a href="${pageContext.request.contextPath}/favorites"><i class="bi bi-heart" aria-hidden="true"></i> Sản phẩm yêu thích</a><a href="${pageContext.request.contextPath}/recently-viewed"><i class="bi bi-clock-history" aria-hidden="true"></i> Sản phẩm đã xem</a></nav>

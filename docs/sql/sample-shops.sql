@@ -19,9 +19,9 @@ INSERT dbo.user_roles(user_id,role_id)
  SELECT n.id,r.id FROM @new n JOIN @accounts a ON a.username=n.username JOIN dbo.roles r ON r.name IN ('ROLE_USER',a.role_name);
 DECLARE @samples TABLE(username NVARCHAR(100),shop_slug VARCHAR(200),shop_name NVARCHAR(150),slug VARCHAR(200),name NVARCHAR(200),category NVARCHAR(150),price DECIMAL(19,2),image VARCHAR(2048),search_name VARCHAR(200));
 INSERT @samples VALUES
- ('demo_moc','moc-studio',N'Mộc Studio','moc-so-mi-oxford',N'Áo sơ mi Oxford Mộc',N'Áo sơ mi',289000,'/images/aosomi.png','ao so mi oxford moc'),
- ('demo_an_nhien','an-nhien-wear',N'An Nhiên Wear','an-nhien-polo',N'Áo polo An Nhiên',N'Áo polo',249000,'/images/aopolo.png','ao polo an nhien'),
- ('demo_pho_denim','pho-denim',N'Phố Denim','pho-denim-quan-jeans',N'Quần jeans Phố Denim',N'Quần jeans',399000,'/images/quandai.png','quan jeans pho denim');
+ ('demo_moc','moc-studio',N'Mộc Studio','moc-so-mi-oxford',N'Áo sơ mi Oxford Mộc',N'Áo sơ mi',289000,'/images/products/ao-so-mi/moc-so-mi-oxford.jpg','ao so mi oxford moc'),
+ ('demo_an_nhien','an-nhien-wear',N'An Nhiên Wear','an-nhien-polo',N'Áo polo An Nhiên',N'Áo polo',249000,'/images/products/ao-polo/an-nhien-polo.jpg','ao polo an nhien'),
+ ('demo_pho_denim','pho-denim',N'Phố Denim','pho-denim-quan-jeans',N'Quần jeans Phố Denim',N'Quần jeans',399000,'/images/products/quan-jeans/pho-denim-quan-jeans.jpg','quan jeans pho denim');
 -- Abort on name collisions with unrelated existing accounts or shops.
 IF EXISTS(SELECT 1 FROM @samples a JOIN dbo.users u ON u.username=a.username
  WHERE u.email<>CONCAT(a.username,'@example.invalid')

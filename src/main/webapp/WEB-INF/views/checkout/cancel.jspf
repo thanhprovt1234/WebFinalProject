@@ -1,0 +1,9 @@
+<%@ page pageEncoding="UTF-8" %>
+<c:if test="${order.canCancel}">
+<form method="post" action="${pageContext.request.contextPath}/orders/${order.id}/cancel" class="order-cancel-form">
+  <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
+  <p>Bạn có thể hủy phần đơn còn chờ xác nhận. Phần đã được shop duyệt sẽ được giữ nguyên.</p>
+  <label>Lý do hủy (không bắt buộc)<input type="text" name="reason" maxlength="1000" placeholder="Nhập lý do hủy"></label>
+  <button type="submit" class="order-cancel-button">Hủy phần đơn đang chờ duyệt</button>
+</form>
+</c:if>

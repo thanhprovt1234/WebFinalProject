@@ -13,7 +13,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class AdminAccessController {
     private final AdminAccessService access;
     public AdminAccessController(AdminAccessService access){this.access=access;}
-    @GetMapping({"","/users"})
+    @GetMapping("/users")
     public String users(@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="0") int page,Model model){
         model.addAttribute("usersPage",access.users(q,page));model.addAttribute("query",q);return "workspace/users";
     }

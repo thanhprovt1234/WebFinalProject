@@ -6,6 +6,14 @@ import com.example.demo.entity.Inventory;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface InventoryRepository extends JpaRepository<Inventory, Long> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select i from Inventory i where i.id=:id")
+    Optional<Inventory> lockById(@org.springframework.data.repository.query.Param("id") Long id);
+    java.util.List<Inventory> findByProductVariantIdOrderByIdAsc(Long variantId);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select i from Inventory i where i.productVariant.id=:variantId and i.store.enabled=true and i.store.shop=i.productVariant.product.shop order by i.id")
+    java.util.List<Inventory> lockAvailable(@org.springframework.data.repository.query.Param("variantId") Long variantId);
 
     Optional<Inventory> findByStoreIdAndProductVariantId(Long storeId, Long productVariantId);
     @org.springframework.data.jpa.repository.Query("select coalesce(sum(i.quantity),0) from Inventory i where i.productVariant.id = :variantId and i.store.enabled = true and i.store.shop = i.productVariant.product.shop")

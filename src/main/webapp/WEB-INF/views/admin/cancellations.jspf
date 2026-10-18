@@ -1,0 +1,11 @@
+<%@ page pageEncoding="UTF-8" %>
+<c:if test="${not empty cancellationNotices}">
+<section class="admin-panel" aria-label="Thông báo khách hủy đơn">
+<h2>Thông báo khách hàng hủy đơn</h2>
+<p>Các lượt hủy gần đây (tối đa 20 thông báo).</p>
+<c:forEach var="notice" items="${cancellationNotices}">
+<p><strong>Khách hàng hủy đơn</strong> · <c:out value="${notice.time}" /> · <c:out value="${notice.shop}" /><br>
+<a href="${pageContext.request.contextPath}${ordersBase}/${notice.shopOrderId}">Xem đơn shop #${notice.shopOrderId}</a> — <c:out value="${notice.note}" /></p>
+</c:forEach>
+</section>
+</c:if>

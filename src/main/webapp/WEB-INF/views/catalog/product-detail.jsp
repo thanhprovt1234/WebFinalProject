@@ -54,7 +54,7 @@
         <p id="cart-status" role="status"></p>
       </form>
       <button type="button" id="open-cart" class="detail-text-button">Xem giỏ hàng (<span id="cart-count">0</span>)</button>
-      <p class="detail-local-note">Đăng nhập để lưu giỏ hàng và xem lại trên mọi thiết bị. Chưa hỗ trợ đặt hàng và thanh toán.</p>
+      <p class="detail-local-note">Đăng nhập để lưu giỏ hàng và đặt hàng thanh toán khi nhận hàng (COD).</p>
       <div class="detail-benefits"><p><i class="bi bi-truck" aria-hidden="true"></i> Miễn phí giao hàng cho đơn từ 500K</p><p><i class="bi bi-palette" aria-hidden="true"></i> Nhiều màu sắc, dễ phối mỗi ngày</p><p><i class="bi bi-heart" aria-hidden="true"></i> Phong cách đơn giản cùng H2T</p></div>
       <details class="product-description"><summary>Thông tin sản phẩm</summary><p><c:out value="${product.description}" default="" /></p></details>
     </div>

@@ -78,7 +78,8 @@
   <div id="cart-items"></div>
   <button type="button" id="cart-retry" hidden>Tải lại giỏ hàng</button>
   <p class="cart-total">Tổng cộng: <strong id="cart-total">0 VNĐ</strong></p>
-  <p class="detail-local-note">Giỏ hàng được lưu theo tài khoản. Chưa hỗ trợ thanh toán.</p>
+  <a id="cart-checkout" class="checkout-button" href="${pageContext.request.contextPath}/checkout" hidden>Đặt hàng COD</a>
+  <p class="detail-local-note">Thanh toán khi nhận hàng (COD). <a href="${pageContext.request.contextPath}/orders">Đơn hàng của tôi</a></p>
 </dialog>
   <script src="${pageContext.request.contextPath}/js/cart.js"></script>
   </c:if>

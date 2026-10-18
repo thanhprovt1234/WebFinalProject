@@ -1,0 +1,15 @@
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<c:set var="pageTitle" value="Thông tin shop & chi nhánh" />
+<%@ include file="start.jspf" %>
+<form class="admin-panel admin-form" method="post" action="${pageContext.request.contextPath}/admin/shops${empty entityId ? '' : '/'.concat(entityId)}"><%@ include file="csrf.jspf" %>
+<label>Tên shop<input name="name" value="<c:out value='${form.name}' />" maxlength="150" required></label>
+<label>Đường dẫn shop (chữ thường, số, dấu gạch ngang)<input name="slug" value="<c:out value='${form.slug}' />" maxlength="200" pattern="[a-z0-9]+(-[a-z0-9]+)*" required ${not empty entityId ? 'readonly' : ''}></label>
+<label>Chủ shop<select name="ownerId" required><option value="">Chọn tài khoản</option><c:forEach var="u" items="${owners}"><option value="${u.id}" ${form.ownerId == u.id ? 'selected' : ''}><c:out value="${u.name}" /></option></c:forEach></select></label>
+<label>Mô tả<textarea name="description" maxlength="2000" rows="3"><c:out value="${form.description}" /></textarea></label>
+<label>Số điện thoại<input name="phone" maxlength="20" value="<c:out value='${form.phone}' />"></label><label>Email<input name="email" type="email" maxlength="254" value="<c:out value='${form.email}' />"></label>
+<label>Trạng thái<select name="status"><c:forEach var="s" items="${statuses}"><option value="${s}" ${form.status == s ? 'selected' : ''}>${s}</option></c:forEach></select></label>
+<label class="admin-check"><input name="enabled" type="checkbox" value="true" ${form.enabled ? 'checked' : ''}> Bật hoạt động shop</label><button class="admin-button" type="submit">Lưu shop</button></form>
+<c:if test="${not empty entityId}"><h2>Chi nhánh của shop</h2><c:forEach var="s" items="${branches}"><form class="admin-panel admin-inline-form" method="post" action="${pageContext.request.contextPath}/admin/shops/${entityId}/stores/${s.id}"><%@ include file="csrf.jspf" %><label>Mã chi nhánh<input name="code" value="<c:out value='${s.code}' />" maxlength="50" required></label><label>Tên<input name="name" value="<c:out value='${s.name}' />" maxlength="150" required></label><label>Địa chỉ<input name="address" value="<c:out value='${s.address}' />" maxlength="500" required></label><label class="admin-check"><input type="checkbox" name="enabled" value="true" ${s.enabled ? 'checked' : ''}> Hoạt động</label><button type="submit">Lưu chi nhánh</button></form></c:forEach>
+<form class="admin-panel admin-inline-form" method="post" action="${pageContext.request.contextPath}/admin/shops/${entityId}/stores"><%@ include file="csrf.jspf" %><h3>Thêm chi nhánh</h3><label>Mã chi nhánh<input name="code" maxlength="50" required></label><label>Tên<input name="name" maxlength="150" required></label><label>Địa chỉ<input name="address" maxlength="500" required></label><input type="hidden" name="enabled" value="true"><button class="admin-button" type="submit">Thêm chi nhánh</button></form></c:if>
+<%@ include file="end.jspf" %>

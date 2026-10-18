@@ -1456,3 +1456,4 @@ input {
     transition-duration: 0.01ms;
   }
 }
+.cart-dialog #cart-checkout{display:block;background:#222;color:#fff;text-align:center;padding:14px 20px;border-radius:4px;text-decoration:none;font-weight:600}.cart-dialog #cart-checkout[hidden]{display:none}

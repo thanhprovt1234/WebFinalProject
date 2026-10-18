@@ -1,0 +1,4 @@
+<%@ page pageEncoding="UTF-8" %>
+</section>
+<script src="${pageContext.request.contextPath}/js/admin.js"></script>
+<%@ include file="../fragments/footer.jspf" %>

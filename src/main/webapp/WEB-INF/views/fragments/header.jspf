@@ -3,6 +3,7 @@
 <!doctype html>
 <html lang="vi">
 <head>
+  <c:if test="${bodyClass == 'checkout-page'}"><link href="${pageContext.request.contextPath}/css/checkout.css" rel="stylesheet"></c:if>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="${_csrf.token}">
@@ -22,6 +23,7 @@
   <link href="${pageContext.request.contextPath}/css/app.css" rel="stylesheet">
   <link href="${pageContext.request.contextPath}/css/fashion-theme.css" rel="stylesheet">
   <link href="${pageContext.request.contextPath}/css/product-activity.css" rel="stylesheet">
+  <c:if test="${bodyClass == 'admin-page'}"><link href="${pageContext.request.contextPath}/css/checkout.css" rel="stylesheet"><link href="${pageContext.request.contextPath}/css/admin.css" rel="stylesheet"></c:if>
   <c:if test="${bodyClass == 'profile-page'}"><link href="${pageContext.request.contextPath}/css/profile.css" rel="stylesheet"></c:if>
   <c:if test="${bodyClass == 'catalog-page' || bodyClass == 'product-page' || bodyClass == 'home-page'}">
     <link href="${pageContext.request.contextPath}/css/catalog.css" rel="stylesheet">
@@ -79,6 +81,7 @@
         <div class="nav-actions">
           <c:choose>
             <c:when test="${not empty pageContext.request.userPrincipal}">
+              <c:if test="${pageContext.request.isUserInRole('ADMIN')}"><a class="nav-login" href="${pageContext.request.contextPath}/admin">Quản trị</a></c:if>
               <a class="user-chip" href="${pageContext.request.contextPath}/profile" aria-label="Thông tin tài khoản và địa chỉ nhận hàng">
                 <i class="bi bi-person-circle" aria-hidden="true"></i>
                 <c:out value="${pageContext.request.userPrincipal.name}" />

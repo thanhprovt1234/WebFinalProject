@@ -31,6 +31,21 @@ import org.hibernate.annotations.Nationalized;
         check = @CheckConstraint(name = "ck_orders_values", constraint = "total_amount >= 0"))
 public class OrderEntity extends AuditableEntity {
 
+    @Column(name = "payment_method", nullable = false, length = 20)
+    private String paymentMethod = "COD";
+
+    @Column(name = "payment_status", nullable = false, length = 20)
+    private String paymentStatus = "UNPAID";
+
+    @Column(name = "checkout_token", length = 36)
+    private String checkoutToken;
+
+    public String getPaymentMethod() { return paymentMethod; }
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String value) { paymentStatus=value; }
+    public String getCheckoutToken() { return checkoutToken; }
+    public void setCheckoutToken(String value) { checkoutToken = value; }
+
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)

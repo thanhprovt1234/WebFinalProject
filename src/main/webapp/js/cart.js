@@ -58,6 +58,8 @@
       controls.append(label, remove); info.append(name, details, subtotal, controls); row.append(info); list.append(row);
     });
     document.querySelector("#cart-total").textContent = money(cart.total);
+    const checkout = document.querySelector("#cart-checkout");
+    if (checkout) checkout.hidden = busy || !authenticated || !cart.items.length || cart.items.some(item => !item.available || item.quantity > item.stock);
     setBusy(busy);
   };
   const request = async (path = "", method = "GET", data = null) => {
@@ -71,6 +73,7 @@
     if (response.status === 401 || response.redirected) {
       authenticated = false;
       cart = { items: [], count: 0, total: 0 };
+      if (method !== "GET") window.location.assign(dialog.dataset.context + "/login");
       throw new Error("Vui lòng đăng nhập để sử dụng giỏ hàng.");
     }
     if (response.status === 403) throw new Error("Phiên làm việc đã thay đổi. Vui lòng tải lại trang rồi thử lại.");
@@ -99,7 +102,7 @@
   };
   form?.addEventListener("submit", event => {
     event.preventDefault();
-    if (!authenticated) { render(); status("Vui lòng đăng nhập để thêm sản phẩm."); dialog.showModal(); return; }
+    if (!authenticated) { window.location.assign(dialog.dataset.context + "/login"); return; }
     if (!form.reportValidity()) return;
     const values = new FormData(form);
     mutate("/items", "POST", { productId: root.dataset.productId, size: values.get("size"), color: form.querySelector('[name="size"]:checked').dataset.color, quantity: values.get("quantity") },
