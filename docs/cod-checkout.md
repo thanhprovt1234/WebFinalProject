@@ -1,5 +1,13 @@
 # Đặt hàng COD
 
+## Voucher mua lần sau
+
+Chạy [sql/loyalty-vouchers.sql](sql/loyalty-vouchers.sql) bằng database owner trước khi khởi động phiên bản có voucher.
+Đã áp dụng và xác minh bảng/cột cùng quyền SELECT, INSERT, UPDATE của `h2t_user` trên `H2T_DB_TEAM_TRIAL_20260917` (`localhost:1433`, instance `SQLEXPRESS`) ngày 21/10/2026.
+Đơn mới giao và thanh toán thành công có tổng thực trả **lớn hơn 500.000đ** được tặng một mã giảm 10%. Đơn đúng 500.000đ không được tặng; phần đã hủy không được tính. Không cấp bù tự động cho đơn cũ.
+Mã gắn với tài khoản, dùng một lần, chưa đặt hạn sử dụng. Xem mã khả dụng tại **Đơn hàng của tôi** hoặc trang thanh toán. Nhập mã và bấm **Áp dụng mã** để xem số tiền giảm trước khi xác nhận. Mỗi đơn dùng tối đa một mã; mã đã dùng không được hoàn lại khi hủy đơn.
+Giảm giá được tính trên tiền hàng, làm tròn đến hai chữ số thập phân và chia cho từng shop để hủy một phần đơn vẫn trừ đúng số tiền thực trả.
+
 Từ giỏ hàng, chọn **Đặt hàng COD**, kiểm tra địa chỉ nhận hàng và tổng tiền rồi xác nhận. Địa chỉ mặc định trong tài khoản được điền sẵn và có thể sửa trước khi đặt. Trong phiên bản này, phí giao hàng là 0đ và được hiển thị trước khi xác nhận.
 
 Sau khi xác nhận thành công, ứng dụng chuyển sang `/orders?placed={id}`: danh sách đơn của tài khoản và tự mở hộp chi tiết đơn vừa đặt. Mỗi đơn có nút **Xem chi tiết**, hiển thị mã `H2T-…`, ngày giờ đặt theo múi giờ Việt Nam, trạng thái, phương thức/trạng thái thanh toán, người nhận, số điện thoại, địa chỉ, sản phẩm và tổng tiền. Trạng thái `NEW` được hiển thị là **Chờ xác nhận**. Đơn nhiều shop có trạng thái khác nhau hiển thị trạng thái của từng shop. Khi JavaScript không khả dụng, nút chi tiết mở trang `/orders/{id}` với cùng thông tin.

@@ -21,12 +21,13 @@ public class CheckoutService {
     private final OrderEntityRepository orders;
     private final OrderStatusHistoryRepository history;
     private final OrderStockAllocationRepository allocations;
+    private final VoucherService vouchers;
     public CheckoutService(UserRepository users, CartItemRepository carts, ProductRepository products,
             ProductVariantRepository variants, InventoryRepository inventory, OrderEntityRepository orders,
-            OrderStatusHistoryRepository history,OrderStockAllocationRepository allocations) {
+            OrderStatusHistoryRepository history,OrderStockAllocationRepository allocations,VoucherService vouchers) {
         this.users=users; this.carts=carts; this.products=products; this.variants=variants;
         this.inventory=inventory; this.orders=orders; this.history=history;
-        this.allocations=allocations;
+        this.allocations=allocations; this.vouchers=vouchers;
     }
     private ResponseStatusException rejected(String message) {
         return new ResponseStatusException(HttpStatus.CONFLICT,message);
@@ -39,6 +40,8 @@ public class CheckoutService {
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.UNAUTHORIZED));
         var previous=orders.findByUserIdAndCheckoutToken(user.getId(),request.getToken());
         if(previous.isPresent()) return previous.get().getId();
+        var voucher=request.getVoucherCode()==null || request.getVoucherCode().isBlank()?null:
+                vouchers.validate(username,request.getVoucherCode());
         var cart=carts.findByUserIdOrderByIdAsc(user.getId());
         if(cart.isEmpty()) throw rejected("Giỏ hàng đang trống.");
         var selected=new ArrayList<Selected>();
@@ -86,9 +89,24 @@ public class CheckoutService {
             shopOrder.addItem(item); shopOrder.setSubtotal(shopOrder.getSubtotal().add(item.getSubtotal()));
             shopOrder.setTotalAmount(shopOrder.getSubtotal()); total=total.add(item.getSubtotal());
         }
-        if(total.compareTo(request.getExpectedTotal())!=0)
+        BigDecimal discount=BigDecimal.ZERO;
+        if(voucher!=null) {
+            // Cumulative rounding keeps shop discounts nonnegative and their sum exact.
+            discount=vouchers.discount(total);
+            var runningSubtotal=BigDecimal.ZERO;
+            var assigned=BigDecimal.ZERO;
+            for(var part:byShop.values()) {
+                runningSubtotal=runningSubtotal.add(part.getSubtotal());
+                var amount=vouchers.discount(runningSubtotal).subtract(assigned);
+                part.setDiscountAmount(amount);
+                part.setTotalAmount(part.getSubtotal().subtract(amount)); assigned=assigned.add(amount);
+            }
+            order.setVoucherCode(voucher.getCode()); order.setDiscountAmount(discount);
+        }
+        if(total.subtract(discount).compareTo(request.getExpectedTotal())!=0)
             throw rejected("Giá sản phẩm đã thay đổi. Vui lòng kiểm tra tổng tiền mới trước khi đặt hàng.");
-        order.setTotalAmount(total); orders.saveAndFlush(order);
+        order.setTotalAmount(total.subtract(discount)); orders.saveAndFlush(order);
+        if(voucher!=null) voucher.setUsedOrder(order);
         allocations.saveAll(reserved);
         for(var shopOrder:byShop.values()) {
             var event=new OrderStatusHistory(); event.setShopOrder(shopOrder); event.setStatus(OrderStatus.NEW);
@@ -103,7 +121,12 @@ public class CheckoutService {
         public String statusLabel() { return CheckoutService.statusLabel(status); }
     }
     public record Receipt(Long id,String receiverName,String receiverPhone,String shippingAddress,
-            BigDecimal total,String paymentMethod,String paymentStatus,List<ShopView> shops,String placedAt) {
+            BigDecimal total,String paymentMethod,String paymentStatus,List<ShopView> shops,String placedAt,
+            String voucherCode,BigDecimal discount) {
+        public Receipt(Long id,String receiverName,String receiverPhone,String shippingAddress,
+                BigDecimal total,String paymentMethod,String paymentStatus,List<ShopView> shops,String placedAt) {
+            this(id,receiverName,receiverPhone,shippingAddress,total,paymentMethod,paymentStatus,shops,placedAt,null,BigDecimal.ZERO);
+        }
         public boolean canCancel() { return shops.stream().anyMatch(s->"NEW".equals(s.status())); }
         public String code() { return "H2T-"+String.format(java.util.Locale.ROOT,"%06d",id); }
         public String status() {
@@ -141,7 +164,7 @@ public class CheckoutService {
                 .map(s->new ShopView(s.getShop().getName(),s.getStatus().name(),s.getTotalAmount(),s.getItems().stream()
                 .map(i->new Line(i.getProductName(),i.getSize(),i.getColor(),i.getQuantity(),i.getUnitPrice(),i.getSubtotal())).toList())).toList(),
                 order.getOrderDate().atOffset(java.time.ZoneOffset.UTC).atZoneSameInstant(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))
-                        .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")));
+                        .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")),order.getVoucherCode(),order.getDiscountAmount());
     }
     @Transactional(readOnly=true)
     public Receipt get(String username,Long id) {

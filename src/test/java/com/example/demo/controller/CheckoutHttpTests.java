@@ -32,6 +32,10 @@ class CheckoutHttpTests {
     @Autowired CartService carts;
     @Autowired PasswordEncoder encoder;
     @Autowired JdbcTemplate jdbc;
+    @Autowired com.example.demo.service.CheckoutService checkout;
+    @Autowired com.example.demo.service.VoucherService vouchers;
+    @Autowired OrderEntityRepository orders;
+    @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
     final List<HttpClient> clients=new ArrayList<>();
     record Fixture(User user,Product product,Inventory stock) {}
     User account() {
@@ -76,12 +80,40 @@ class CheckoutHttpTests {
     }
     @AfterEach void cleanup() {
         clients.forEach(HttpClient::close);
-        for(String table:List.of("order_stock_allocations","order_status_history","order_items","shop_orders","orders","cart_items","inventories","product_variants","products","stores","shops","categories","user_roles","users")) jdbc.update("DELETE FROM "+table);
+        for(String table:List.of("vouchers","order_stock_allocations","order_status_history","order_items","shop_orders","orders","cart_items","inventories","product_variants","products","stores","shops","categories","user_roles","users")) jdbc.update("DELETE FROM "+table);
+    }
+    @Test void appliesVoucherShowsDiscountAndConsumesItOnSuccessfulCheckout() throws Exception {
+        var f=fixture(8); f.product().setBasePrice(new BigDecimal("300000")); products.saveAndFlush(f.product());
+        var orderRequest=new com.example.demo.dto.CheckoutRequest();
+        orderRequest.setToken(UUID.randomUUID().toString()); orderRequest.setExpectedTotal(new BigDecimal("600000"));
+        orderRequest.setReceiverName("Buyer"); orderRequest.setReceiverPhone("0901234567"); orderRequest.setShippingAddress("12 Test Street");
+        var source=checkout.place(f.user().getUsername(),orderRequest);
+        new org.springframework.transaction.support.TransactionTemplate(transactions).executeWithoutResult(status->{
+            var order=orders.findById(source).orElseThrow();
+            order.getShopOrders().forEach(s->s.setStatus(OrderStatus.DELIVERED)); order.setPaymentStatus("PAID"); vouchers.reward(order);
+        });
+        var code=vouchers.available(f.user().getUsername()).getFirst(); add(f.user(),f.product());
+        var c=login(f.user()); var page=c.send(request("/checkout",null,null),HttpResponse.BodyHandlers.ofString());
+        var data=body(page.body()).replace("expectedTotal=200000","expectedTotal=600000")+"&voucherCode="+code;
+        var preview=c.send(request("/checkout",data+"&action=apply",csrf(page.body())),HttpResponse.BodyHandlers.ofString());
+        assertThat(preview.statusCode()).isEqualTo(200);
+        assertThat(preview.body()).contains("value=\"540000.00\"");
+        var placed=c.send(request("/checkout",data.replace("expectedTotal=600000","expectedTotal=540000"),csrf(preview.body())),HttpResponse.BodyHandlers.ofString());
+        assertThat(placed.statusCode()).isEqualTo(302);
+        assertThat(vouchers.available(f.user().getUsername())).isEmpty();
+        var list=c.send(request("/orders",null,null),HttpResponse.BodyHandlers.ofString());
+        assertThat(list.statusCode()).isEqualTo(200); assertThat(list.body()).contains(code);
+        assertThat(jdbc.queryForObject("SELECT total_amount FROM orders WHERE voucher_code=?",BigDecimal.class,code)).isEqualByComparingTo("540000");
     }
     @Test void rendersValidatesCsrfCreatesCodAndConcurrentRetryReturnsSameReceipt() throws Exception {
         var f=fixture(5); var c=login(f.user()); var page=c.send(request("/checkout",null,null),HttpResponse.BodyHandlers.ofString());
         assertThat(page.statusCode()).isEqualTo(200); assertThat(page.body()).contains("COD Shirt &lt;test&gt;","Thanh toán khi nhận hàng");
         var data=body(page.body()); var token=csrf(page.body());
+        assertThat(page.body()).contains("id=\"voucherCode\"", "name=\"action\" value=\"apply\"");
+        var preview=c.send(request("/checkout",data+"&action=apply&voucherCode=INVALID",token),HttpResponse.BodyHandlers.ofString());
+        assertThat(preview.statusCode()).isEqualTo(200);
+        assertThat(preview.body()).contains("role=\"alert\"", "INVALID");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders",Integer.class)).isZero();
         assertThat(c.send(request("/checkout",data,null),HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(403);
         var invalid=c.send(request("/checkout",data.replace("receiverName=Buyer","receiverName="),token),HttpResponse.BodyHandlers.ofString());
         assertThat(invalid.statusCode()).isEqualTo(200); assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders",Integer.class)).isZero();

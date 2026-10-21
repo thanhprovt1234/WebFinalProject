@@ -154,7 +154,7 @@ public class AdminManagementService {
         var receipt=new CheckoutService.Receipt(parent.getId(),parent.getReceiverName(),parent.getReceiverPhone(),parent.getShippingAddress(),
                 s.getTotalAmount(),parent.getPaymentMethod(),"COD".equals(parent.getPaymentMethod())?payment:parent.getPaymentStatus(),List.of(view),
                 parent.getOrderDate().atOffset(java.time.ZoneOffset.UTC).atZoneSameInstant(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))
-                    .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")));
+                      .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")),parent.getVoucherCode(),s.getDiscountAmount());
         return orderDetails(s,receipt);
     }
     public Map<String,Object> order(Long id) {

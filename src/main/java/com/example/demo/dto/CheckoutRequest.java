@@ -13,6 +13,10 @@ public class CheckoutRequest {
     private String token;
     @NotNull @DecimalMin("0.00")
     private java.math.BigDecimal expectedTotal;
+    @Size(max=40)
+    private String voucherCode;
+    public String getVoucherCode() { return voucherCode; }
+    public void setVoucherCode(String value) { voucherCode=value==null?null:value.strip().toUpperCase(java.util.Locale.ROOT); }
     public String getReceiverName() { return receiverName; }
     public void setReceiverName(String s) { receiverName=s==null?null:s.strip(); }
     public String getReceiverPhone() { return receiverPhone; }

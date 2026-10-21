@@ -34,7 +34,7 @@ class SqlServerSchemaTests {
             var sources = new MetadataSources(registry);
             List.of(User.class, Role.class, Category.class, Product.class, ProductVariant.class,
                     Store.class, StoreManager.class, Inventory.class, OrderEntity.class, OrderItem.class, Shop.class,
-                    ShopOrder.class, OrderStatusHistory.class, Shipment.class, Address.class, ProductReview.class, CartItem.class, ProductActivity.class)
+                    ShopOrder.class, OrderStatusHistory.class, Shipment.class, Address.class, ProductReview.class, CartItem.class, ProductActivity.class, Voucher.class)
                     .forEach(sources::addAnnotatedClass);
             var metadata = sources.buildMetadata();
             SchemaManagementToolCoordinator.process(metadata, registry, settings, action -> {
@@ -47,7 +47,7 @@ class SqlServerSchemaTests {
         var ddl = script.toString().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
         for (var table : List.of("users", "roles", "user_roles", "categories", "products",
                 "product_variants", "stores", "store_managers", "inventories", "orders", "order_items", "shops",
-                "shop_orders", "order_status_history", "shipments", "addresses", "product_reviews", "cart_items", "product_activities")) {
+                "shop_orders", "order_status_history", "shipments", "addresses", "product_reviews", "cart_items", "product_activities", "vouchers")) {
             assertThat(ddl).contains("create table " + table + " (");
         }
         assertThat(ddl).contains("identity", "nvarchar(200)", "nvarchar(50)", "datetime2", "bit");

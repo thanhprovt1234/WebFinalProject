@@ -14,12 +14,13 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Controller
 public class CheckoutController {
+    private final VoucherService vouchers;
     private final CartService carts;
     private final CheckoutService checkout;
     private final ProfileService profiles;
     private final CustomerOrderService customerOrders;
-    public CheckoutController(CartService carts,CheckoutService checkout,ProfileService profiles,CustomerOrderService customerOrders) {
-        this.carts=carts; this.checkout=checkout; this.profiles=profiles;this.customerOrders=customerOrders;
+    public CheckoutController(CartService carts,CheckoutService checkout,ProfileService profiles,CustomerOrderService customerOrders,VoucherService vouchers) {
+        this.vouchers=vouchers; this.carts=carts; this.checkout=checkout; this.profiles=profiles;this.customerOrders=customerOrders;
     }
     @GetMapping("/checkout")
     public String form(Principal principal,HttpSession session,Model model) {
@@ -36,11 +37,21 @@ public class CheckoutController {
     }
     private String prepare(Principal principal,CheckoutRequest request,Model model) {
         var cart=carts.get(principal.getName()); model.addAttribute("cart",cart);
-        request.setExpectedTotal(cart.total());
+        java.math.BigDecimal discount=java.math.BigDecimal.ZERO;
+        try { discount=vouchers.preview(principal.getName(),request.getVoucherCode(),cart.total()); }
+        catch(ResponseStatusException ex) { model.addAttribute("voucherError",ex.getReason()); }
+        request.setExpectedTotal(cart.total().subtract(discount));
+        model.addAttribute("discount",discount);
+        model.addAttribute("payableTotal",cart.total().subtract(discount));
+        model.addAttribute("vouchers",vouchers.available(principal.getName()));
         model.addAttribute("canOrder",!cart.items().isEmpty() && cart.items().stream().allMatch(i->i.available() && i.quantity()<=i.stock()));
         return "checkout/index";
     }
-    @PostMapping("/checkout")
+    @PostMapping(value="/checkout",params="action=apply")
+    public String apply(Principal principal,@ModelAttribute("checkoutForm") CheckoutRequest request,Model model) {
+        return prepare(principal,request,model);
+    }
+    @PostMapping(value="/checkout",params="action!=apply")
     public String place(Principal principal,HttpSession session,@Valid @ModelAttribute("checkoutForm") CheckoutRequest request,
             BindingResult errors,Model model) {
         if(!java.util.Objects.equals(session.getAttribute("checkoutToken"),request.getToken()))
@@ -68,6 +79,7 @@ public class CheckoutController {
     public String orders(Principal principal,@RequestParam(required=false) Long placed,Model model) {
         if(placed!=null) model.addAttribute("placedOrder",checkout.get(principal.getName(),placed).id());
         model.addAttribute("account",profiles.account(principal.getName()));
+        model.addAttribute("vouchers",vouchers.available(principal.getName()));
         model.addAttribute("orders",checkout.list(principal.getName())); return "checkout/orders";
     }
 }

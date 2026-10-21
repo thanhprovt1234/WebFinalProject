@@ -60,6 +60,15 @@ public class OrderEntity extends AuditableEntity {
     @Column(name = "total_amount", nullable = false, precision = 19, scale = 2)
     private BigDecimal totalAmount;
 
+    @Column(name="voucher_code", length=40)
+    private String voucherCode;
+    @Column(name="discount_amount", nullable=false, precision=19, scale=2)
+    private BigDecimal discountAmount=BigDecimal.ZERO;
+    public String getVoucherCode() { return voucherCode; }
+    public void setVoucherCode(String value) { voucherCode=value; }
+    public BigDecimal getDiscountAmount() { return discountAmount; }
+    public void setDiscountAmount(BigDecimal value) { discountAmount=value; }
+
     @NotBlank
     @Size(max = 150)
     @Nationalized

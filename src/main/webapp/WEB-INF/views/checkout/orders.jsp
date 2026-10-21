@@ -16,6 +16,7 @@
       <c:if test="${not empty placedOrder}"><p class="orders-success" role="status"><i class="bi bi-check-circle" aria-hidden="true"></i> Đặt hàng thành công! Đơn hàng đang chờ xác nhận. Bạn thanh toán khi nhận hàng.</p></c:if>
       <c:if test="${not empty success}"><p class="orders-success" role="status"><c:out value="${success}" /></p></c:if>
       <c:if test="${not empty error}"><p class="alert alert-danger" role="alert"><c:out value="${error}" /></p></c:if>
+      <section class="checkout-card" aria-label="Voucher của tôi"><h2>Voucher của tôi</h2><p>Đơn thực trả trên 500.000đ được tặng mã giảm 10% sau khi giao hàng và thanh toán thành công. Mỗi mã dùng một lần cho lần mua tiếp theo.</p><c:if test="${empty vouchers}"><p>Bạn chưa có mã khả dụng.</p></c:if><c:forEach var="code" items="${vouchers}"><p><strong><c:out value="${code}" /></strong> — Giảm 10% · Chưa sử dụng</p></c:forEach></section>
       <div class="orders-list-heading"><h2>Tất cả đơn hàng</h2><span>${orders.size()} đơn hàng</span></div>
       <c:if test="${empty orders}"><div class="orders-empty"><i class="bi bi-bag" aria-hidden="true"></i><h2>Bạn chưa có đơn hàng nào</h2><p>Khám phá các sản phẩm và chọn món đồ bạn yêu thích.</p><a class="checkout-button" href="${pageContext.request.contextPath}/collections">Khám phá sản phẩm</a></div></c:if>
       <c:forEach var="order" items="${orders}">
