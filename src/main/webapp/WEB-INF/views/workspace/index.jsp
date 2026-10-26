@@ -11,7 +11,7 @@
 <c:if test="${roles.contains('ROLE_ADMIN')}"><section class="profile-card"><h2>Admin — Quản trị toàn hệ thống</h2><p>Quản lý tất cả shop, sản phẩm, tồn kho, đơn hàng và phân quyền tài khoản.</p><a href="${pageContext.request.contextPath}/admin">Mở trang quản trị</a> · <a href="${pageContext.request.contextPath}/admin/users">Phân quyền</a></section></c:if>
 <c:if test="${roles.contains('ROLE_VENDOR') || roles.contains('ROLE_ADMIN')}"><section class="profile-card"><h2>Seller — Chủ shop</h2><a href="${pageContext.request.contextPath}/seller">Xem shop và sản phẩm</a> · <a href="${pageContext.request.contextPath}/seller/orders">Quản lý đơn hàng shop</a></section></c:if>
 <c:if test="${roles.contains('ROLE_MANAGER') || roles.contains('ROLE_ADMIN')}"><section class="profile-card"><h2>Manager — Quản lý cửa hàng</h2><a href="${pageContext.request.contextPath}/manager">Xem chi nhánh được phân công</a></section></c:if>
-<c:if test="${roles.contains('ROLE_SHIPPER') || roles.contains('ROLE_ADMIN')}"><section class="profile-card"><h2>Shipper — Giao hàng</h2><a href="${pageContext.request.contextPath}/shipper">Xem đơn được phân công</a></section></c:if>
+<c:if test="${roles.contains('ROLE_SHIPPER') || roles.contains('ROLE_ADMIN')}"><section class="profile-card"><h2>Shipper — Giao hàng</h2><a href="${pageContext.request.contextPath}/shipper">Xem đơn được phân công</a> · <a href="${pageContext.request.contextPath}/shipper/statistics">Thống kê giao hàng</a></section></c:if>
 </div>
 </main>
 <%@ include file="../fragments/footer.jspf" %>

@@ -15,7 +15,10 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @Controller @RequestMapping("/admin")
 public class AdminManagementController {
     private final AdminManagementService admin;
-    public AdminManagementController(AdminManagementService admin) { this.admin=admin; }
+    private final com.example.demo.service.ShipperService shipping;
+    private final com.example.demo.service.CodSettlementService cod;
+    public AdminManagementController(AdminManagementService admin,com.example.demo.service.ShipperService shipping,
+            com.example.demo.service.CodSettlementService cod) { this.admin=admin;this.shipping=shipping;this.cod=cod; }
     @GetMapping public String home(Model model) { model.addAttribute("totals",admin.totals());model.addAttribute("cancellationNotices",admin.cancellationNotices());return "admin/index"; }
     @GetMapping("/shops") public String shops(Model model) { model.addAttribute("shops",admin.shops());return "admin/shops"; }
     @GetMapping({"/shops/new","/shops/{id}/edit"}) public String shop(@PathVariable(required=false) Long id,Model model) {
@@ -72,7 +75,15 @@ public class AdminManagementController {
         return save(errors,()->admin.saveCategory(id,form),"/admin/categories",redirect);
     }
     @GetMapping("/orders") public String orders(@RequestParam(defaultValue="0") int page,Model model) { model.addAttribute("ordersPage",admin.orders(page));model.addAttribute("cancellationNotices",admin.cancellationNotices());return "admin/orders"; }
-    @GetMapping("/orders/{id}") public String order(@PathVariable Long id,Model model) { model.addAllAttributes(admin.order(id));return "admin/order"; }
+    @GetMapping("/orders/{id}") public String order(@PathVariable Long id,Model model) { model.addAllAttributes(admin.order(id));model.addAllAttributes(shipping.assignment(id));return "admin/order"; }
+    @PostMapping("/orders/{id}/assign") public String assign(Principal principal,@PathVariable Long id,@RequestParam Long shipperId,RedirectAttributes redirect) {
+        return save(null,()->shipping.assign(principal.getName(),id,shipperId),"/admin/orders/"+id,redirect);
+    }
+    @PostMapping("/orders/{id}/cod/confirm") public String confirmCod(Principal principal,@PathVariable Long id,
+            @RequestParam java.math.BigDecimal amount,@RequestParam(defaultValue="") String note,
+            @RequestParam(defaultValue="false") boolean confirmed,RedirectAttributes redirect) {
+        return save(null,()->cod.confirm(principal.getName(),id,amount,note,confirmed),"/admin/orders/"+id,redirect);
+    }
     @PostMapping("/orders/{id}/status") public String status(Principal principal,@PathVariable Long id,@Valid @ModelAttribute StatusForm form,BindingResult errors,RedirectAttributes redirect) {
         return save(errors,()->admin.changeStatus(principal.getName(),id,form),"/admin/orders/"+id,redirect);
     }

@@ -13,7 +13,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @Controller @RequestMapping("/seller/orders")
 public class SellerOrderController {
     private final AdminManagementService orders;
-    public SellerOrderController(AdminManagementService orders) { this.orders=orders; }
+    private final com.example.demo.service.CodSettlementService cod;
+    public SellerOrderController(AdminManagementService orders,com.example.demo.service.CodSettlementService cod) { this.orders=orders;this.cod=cod; }
     @ModelAttribute public void navigation(Model model) {
         model.addAttribute("sellerOrders",true);
         model.addAttribute("ordersBase","/seller/orders");
@@ -34,6 +35,13 @@ public class SellerOrderController {
             orders.sellerChangeStatus(principal.getName(),id,form);
             redirect.addFlashAttribute("success","Đã cập nhật trạng thái đơn hàng.");
         } catch(IllegalArgumentException ex) { redirect.addFlashAttribute("error",ex.getMessage()); }
+        return "redirect:/seller/orders/"+id;
+    }
+    @PostMapping("/{id}/cod/confirm") public String confirmCod(Principal principal,@PathVariable Long id,
+            @RequestParam java.math.BigDecimal amount,@RequestParam(defaultValue="") String note,
+            @RequestParam(defaultValue="false") boolean confirmed,RedirectAttributes redirect) {
+        try{cod.confirm(principal.getName(),id,amount,note,confirmed);redirect.addFlashAttribute("success","Đã xác nhận shop nhận đủ tiền COD.");}
+        catch(IllegalArgumentException ex){redirect.addFlashAttribute("error",ex.getMessage());}
         return "redirect:/seller/orders/"+id;
     }
 }

@@ -33,6 +33,8 @@ class AdminManagementTests {
     @Autowired CartService carts; @Autowired CheckoutService checkout; @Autowired PasswordEncoder encoder; @Autowired JdbcTemplate jdbc;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
     @Autowired PurchaseConfirmationService confirmations;
+    @Autowired ShipmentRepository shipments;
+    @Autowired ShipperService shipping;
     final List<HttpClient> clients=new ArrayList<>();
     record Session(User user,HttpClient client,String csrf) {}
     record Fixture(Shop shop,Product product,ProductVariant variant,Store store,Inventory stock) {}
@@ -69,13 +71,241 @@ class AdminManagementTests {
     }
     @AfterEach void cleanup() {
         clients.forEach(HttpClient::close);
-        for(var table:List.of("order_stock_allocations","order_status_history","order_items","shop_orders","orders","cart_items","inventories","product_variants","products","stores","shops","categories","user_roles","users"))jdbc.update("DELETE FROM "+table);
+        for(var table:List.of("vouchers","shipments","order_stock_allocations","order_status_history","order_items","shop_orders","orders","cart_items","inventories","product_variants","products","stores","shops","categories","user_roles","users"))jdbc.update("DELETE FROM "+table);
     }
     Session vendor() throws Exception {
         var session=session(false);
         var role=roles.findByName(RoleName.ROLE_VENDOR).orElseGet(()->{var r=new Role();r.setName(RoleName.ROLE_VENDOR);return roles.saveAndFlush(r);});
         jdbc.update("INSERT INTO user_roles(user_id,role_id) VALUES (?,?)",session.user().getId(),role.getId());
         return session;
+    }
+    Session courier() throws Exception {
+        var s=session(false);
+        var role=roles.findByName(RoleName.ROLE_SHIPPER).orElseGet(()->{var r=new Role();r.setName(RoleName.ROLE_SHIPPER);return roles.saveAndFlush(r);});
+        jdbc.update("INSERT INTO user_roles(user_id,role_id) VALUES (?,?)",s.user().getId(),role.getId());return s;
+    }
+    Shipment assign(Session admin,Session shipper,Long partId) throws Exception {
+        post(admin,"/admin/orders/"+partId+"/status",Map.of("status","CONFIRMED"));
+        assertThat(post(admin,"/admin/orders/"+partId+"/assign",Map.of("shipperId",shipper.user().getId())).statusCode()).isEqualTo(302);
+        return shipments.findByShopOrderId(partId).orElseThrow();
+    }
+    HttpResponse<String> progress(Session s,Shipment shipment,String status,boolean cod,String note) throws Exception {
+        return post(s,"/shipper/shipments/"+shipment.getId()+"/status",Map.of("status",status,"codCollected",cod,"note",note));
+    }
+    HttpResponse<String> deliver(Session admin,Long partId) throws Exception {
+        var shipment=shipments.findByShopOrderId(partId);
+        if(shipment.isPresent())return progress(admin,shipment.get(),"DELIVERED",true,"");
+        var s=courier();var assigned=assign(admin,s,partId);
+        progress(s,assigned,"PICKED_UP",false,"");progress(s,assigned,"SHIPPING",false,"");
+        return progress(s,assigned,"DELIVERED",true,"");
+    }
+    Map<String,Object> courierDashboard(Session s) {
+        var context=org.springframework.security.core.context.SecurityContextHolder.getContext();var previous=context.getAuthentication();
+        context.setAuthentication(org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+                s.user().getUsername(),"",List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_SHIPPER"))));
+        try{return shipping.dashboard(s.user().getUsername(),"",null,null,null,0);}
+        finally{context.setAuthentication(previous);}
+    }
+    @Test void courierHandsOverCodAndShopConfirmsWithoutPayingTwiceOrResendingMail() throws Exception {
+        var admin=session(true);var seller=vendor();var buyer=session(false);var s=courier();var f=fixture(seller);
+        var id=place(buyer,f);var part=shopOrders.findByOrderId(id).getFirst();var sh=assign(admin,s,part.getId());
+        progress(s,sh,"PICKED_UP",false,"");progress(s,sh,"SHIPPING",false,"");progress(s,sh,"DELIVERED",true,"");
+        var remit="/shipper/shipments/"+sh.getId()+"/cod/remit";var confirm="/seller/orders/"+part.getId()+"/cod/confirm";
+        assertThat(get(seller,"/seller/orders/"+part.getId()).body()).contains("Đã thu COD · Chờ bàn giao cho shop").doesNotContain("action=\""+confirm+"\"");
+        assertThat((BigDecimal)courierDashboard(s).get("unremitted")).isEqualByComparingTo("200000");
+        assertThat(post(s,remit,Map.of("amount","200000","confirmed",true,"note","Cash <script>")).statusCode()).isEqualTo(302);
+        var handedOver=shipments.findById(sh.getId()).orElseThrow();assertThat(handedOver.getCodRemittedAt()).isNotNull();assertThat(handedOver.getCodConfirmedAt()).isNull();
+        assertThat(get(seller,"/seller/orders/"+part.getId()).body()).contains(confirm,"Cash &lt;script&gt;").doesNotContain("Cash <script>");
+        assertThat(get(seller,"/seller/orders").body()).contains("Chờ shop xác nhận");
+        var pending=courierDashboard(s);assertThat((BigDecimal)pending.get("unremitted")).isEqualByComparingTo("0");
+        assertThat((BigDecimal)pending.get("awaitingConfirmation")).isEqualByComparingTo("200000");
+        assertThat(post(seller,confirm,Map.of("amount","200000","confirmed",true,"note","Received <test>")).statusCode()).isEqualTo(302);
+        var finished=shipments.findById(sh.getId()).orElseThrow();assertThat(finished.getCodConfirmedAt()).isNotNull();assertThat(finished.getCodConfirmedBy()).isEqualTo(seller.user().getUsername());
+        assertThat(get(s,"/shipper/shipments/"+sh.getId()).body()).contains("Shop đã xác nhận nhận COD","Received &lt;test&gt;").doesNotContain("Received <test>");
+        var settled=courierDashboard(s);assertThat((BigDecimal)settled.get("awaitingConfirmation")).isEqualByComparingTo("0");
+        assertThat((BigDecimal)settled.get("confirmedCod")).isEqualByComparingTo("200000");
+        assertThat(orders.findById(id).orElseThrow().getPaymentStatus()).isEqualTo("PAID");
+        assertThat(shopOrders.findById(part.getId()).orElseThrow().getTotalAmount()).isEqualByComparingTo("200000");
+        assertThat(inventory.findById(f.stock().getId()).orElseThrow().getQuantity()).isEqualTo(3);
+        post(s,remit,Map.of("amount","200000","confirmed",true,"note","Duplicate"));
+        post(seller,confirm,Map.of("amount","200000","confirmed",true,"note","Duplicate"));
+        var repeated=shipments.findById(sh.getId()).orElseThrow();assertThat(repeated.getCodRemittedAt()).isEqualTo(handedOver.getCodRemittedAt());
+        assertThat(repeated.getCodConfirmedAt()).isEqualTo(finished.getCodConfirmedAt());assertThat(repeated.getCodConfirmationNote()).isEqualTo("Received <test>");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM order_status_history WHERE shop_order_id=? AND note LIKE ?",Integer.class,part.getId(),"Bàn giao COD — %")).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM order_status_history WHERE shop_order_id=? AND note LIKE ?",Integer.class,part.getId(),"Shop xác nhận nhận COD — %")).isEqualTo(1);
+        verify(mailSender,times(1)).send(any(SimpleMailMessage.class));
+    }
+    @Test void codSettlementBlocksWrongRolesOtherOwnersCsrfMissingMoneyAndEarlyConfirmation() throws Exception {
+        var admin=session(true);var seller=vendor();var outsider=vendor();var buyer=session(false);var s=courier();var other=courier();var f=fixture(seller);
+        var id=place(buyer,f);var part=shopOrders.findByOrderId(id).getFirst();var sh=assign(admin,s,part.getId());
+        var remit="/shipper/shipments/"+sh.getId()+"/cod/remit";var confirm="/seller/orders/"+part.getId()+"/cod/confirm";
+        var valid=Map.<String,Object>of("amount","200000","confirmed",true);
+        post(s,remit,valid);post(seller,confirm,valid);assertThat(shipments.findById(sh.getId()).orElseThrow().getCodRemittedAt()).isNull();
+        progress(s,sh,"PICKED_UP",false,"");progress(s,sh,"SHIPPING",false,"");progress(s,sh,"DELIVERED",true,"");
+        assertThat(post(other,remit,valid).statusCode()).isEqualTo(403);assertThat(post(buyer,remit,valid).statusCode()).isEqualTo(403);
+        assertThat(post(s,confirm,valid).statusCode()).isEqualTo(403);assertThat(post(outsider,confirm,valid).statusCode()).isEqualTo(403);
+        assertThat(request(s.client(),remit,"amount=200000&confirmed=true",null).statusCode()).isEqualTo(403);
+        assertThat(request(seller.client(),confirm,"amount=200000&confirmed=true",null).statusCode()).isEqualTo(403);
+        post(s,remit,Map.of("amount","1","confirmed",true));post(s,remit,Map.of("amount","200000"));
+        post(s,remit,Map.of("amount","200000","confirmed",true,"note","x".repeat(501)));
+        assertThat(shipments.findById(sh.getId()).orElseThrow().getCodRemittedAt()).isNull();
+        post(seller,confirm,valid);assertThat(shipments.findById(sh.getId()).orElseThrow().getCodConfirmedAt()).isNull();
+        post(s,remit,valid);
+        post(seller,confirm,Map.of("amount","1","confirmed",true));post(seller,confirm,Map.of("amount","200000"));
+        assertThat(shipments.findById(sh.getId()).orElseThrow().getCodConfirmedAt()).isNull();
+        post(admin,"/admin/orders/"+part.getId()+"/cod/confirm",valid);
+        assertThat(shipments.findById(sh.getId()).orElseThrow().getCodConfirmedBy()).isEqualTo(admin.user().getUsername());
+    }
+    @Test void multiShopCodIsSettledPerShopEvenWhenOtherPartIsStillBeingDelivered() throws Exception {
+        var admin=session(true);var a=vendor();var b=vendor();var buyer=session(false);var s=courier();var fa=fixture(a);var fb=fixture(b);
+        for(var f:List.of(fa,fb)){var add=new CartAddRequest();add.setProductId(f.product().getSlug());add.setSize("M");add.setColor("White");add.setQuantity(2);carts.add(buyer.user().getUsername(),add);}
+        var r=new CheckoutRequest();r.setReceiverName("Buyer");r.setReceiverPhone("0901234567");r.setShippingAddress("12 Test Street");r.setToken(UUID.randomUUID().toString());r.setExpectedTotal(new BigDecimal("400000"));
+        var id=checkout.place(buyer.user().getUsername(),r);var parts=shopOrders.findByOrderId(id);
+        var pa=parts.stream().filter(p->p.getShop().getId().equals(fa.shop().getId())).findFirst().orElseThrow();
+        var pb=parts.stream().filter(p->p.getShop().getId().equals(fb.shop().getId())).findFirst().orElseThrow();
+        var sa=assign(admin,s,pa.getId());var sb=assign(admin,s,pb.getId());
+        progress(s,sa,"PICKED_UP",false,"");progress(s,sa,"SHIPPING",false,"");progress(s,sa,"DELIVERED",true,"");
+        var valid=Map.<String,Object>of("amount","200000","confirmed",true);
+        post(s,"/shipper/shipments/"+sa.getId()+"/cod/remit",valid);
+        assertThat(post(b,"/seller/orders/"+pa.getId()+"/cod/confirm",valid).statusCode()).isEqualTo(403);
+        post(a,"/seller/orders/"+pa.getId()+"/cod/confirm",valid);
+        assertThat(shipments.findById(sa.getId()).orElseThrow().getCodConfirmedAt()).isNotNull();
+        assertThat(shipments.findById(sb.getId()).orElseThrow().getCodConfirmedAt()).isNull();
+        assertThat(orders.findById(id).orElseThrow().getPaymentStatus()).isEqualTo("UNPAID");verifyNoInteractions(mailSender);
+        progress(s,sb,"PICKED_UP",false,"");progress(s,sb,"SHIPPING",false,"");progress(s,sb,"DELIVERED",true,"");
+        assertThat(orders.findById(id).orElseThrow().getPaymentStatus()).isEqualTo("PAID");
+        assertThat((BigDecimal)courierDashboard(s).get("unremitted")).isEqualByComparingTo("200000");
+        assertThat((BigDecimal)courierDashboard(s).get("confirmedCod")).isEqualByComparingTo("200000");verify(mailSender,times(1)).send(any(SimpleMailMessage.class));
+    }
+    @Test void legacyShipmentWithoutRecordedCodDoesNotCreateAnAssumedSettlement() throws Exception {
+        var admin=session(true);var seller=vendor();var buyer=session(false);var s=courier();var f=fixture(seller);
+        var id=place(buyer,f);var part=shopOrders.findByOrderId(id).getFirst();var sh=assign(admin,s,part.getId());
+        progress(s,sh,"PICKED_UP",false,"");progress(s,sh,"SHIPPING",false,"");progress(s,sh,"DELIVERED",true,"");
+        jdbc.update("UPDATE shipments SET cod_collected_amount=NULL WHERE id=?",sh.getId());
+        post(s,"/shipper/shipments/"+sh.getId()+"/cod/remit",Map.of("amount","200000","confirmed",true));
+        assertThat(shipments.findById(sh.getId()).orElseThrow().getCodRemittedAt()).isNull();
+        assertThat(get(seller,"/seller/orders/"+part.getId()).body()).contains("Cần đối soát số COD của đơn cũ");
+        assertThat((BigDecimal)courierDashboard(s).get("unremitted")).isEqualByComparingTo("0");
+    }
+    @Test void assignmentRequiresApprovalActiveShipperAdminAndCsrfAndCannotDuplicate() throws Exception {
+        var admin=session(true);var buyer=session(false);var s=courier();var other=courier();var f=fixture(buyer);
+        var id=place(buyer,f);var part=shopOrders.findByOrderId(id).getFirst();var path="/admin/orders/"+part.getId()+"/assign";
+        post(admin,path,Map.of("shipperId",s.user().getId()));assertThat(shipments.count()).isZero();
+        post(admin,"/admin/orders/"+part.getId()+"/status",Map.of("status","CONFIRMED"));
+        post(admin,path,Map.of("shipperId",buyer.user().getId()));assertThat(shipments.count()).isZero();
+        assertThat(post(s,path,Map.of("shipperId",s.user().getId())).statusCode()).isEqualTo(403);
+        assertThat(request(admin.client(),path,"shipperId="+s.user().getId(),null).statusCode()).isEqualTo(403);
+        jdbc.update("UPDATE users SET enabled=0 WHERE id=?",s.user().getId());
+        post(admin,path,Map.of("shipperId",s.user().getId()));assertThat(shipments.count()).isZero();
+        jdbc.update("UPDATE users SET enabled=1 WHERE id=?",s.user().getId());
+        var first=java.util.concurrent.CompletableFuture.supplyAsync(()->{try{return post(admin,path,Map.of("shipperId",s.user().getId())).statusCode();}catch(Exception e){throw new RuntimeException(e);}});
+        var second=java.util.concurrent.CompletableFuture.supplyAsync(()->{try{return post(admin,path,Map.of("shipperId",other.user().getId())).statusCode();}catch(Exception e){throw new RuntimeException(e);}});
+        assertThat(first.get()).isEqualTo(302);assertThat(second.get()).isEqualTo(302);assertThat(shipments.count()).isEqualTo(1);
+        verifyNoInteractions(mailSender);
+    }
+    @Test void shipperWorkflowRejectsSkipsRequiresCodAndSupportsFailureAndRetry() throws Exception {
+        var admin=session(true);var buyer=session(false);var s=courier();var stranger=courier();var f=fixture(buyer);
+        var id=place(buyer,f);var part=shopOrders.findByOrderId(id).getFirst();var sh=assign(admin,s,part.getId());
+        assertThat(get(s,"/shipper").statusCode()).isEqualTo(200);
+        assertThat(get(s,"/shipper/shipments/"+sh.getId()).body()).contains("Branch","Test","0901234567","google.com/maps","Admin Shirt &lt;test&gt;");
+        assertThat(get(stranger,"/shipper/shipments/"+sh.getId()).statusCode()).isEqualTo(403);
+        assertThat(progress(stranger,sh,"PICKED_UP",false,"").statusCode()).isEqualTo(403);
+        assertThat(request(s.client(),"/shipper/shipments/"+sh.getId()+"/status","status=PICKED_UP",null).statusCode()).isEqualTo(403);
+        progress(s,sh,"DELIVERED",true,"");assertThat(shipments.findById(sh.getId()).orElseThrow().getStatus()).isEqualTo(ShipmentStatus.ASSIGNED);
+        progress(s,sh,"PICKED_UP",false,"");assertThat(shopOrders.findById(part.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.PICKED_UP);
+        post(admin,"/admin/orders/"+part.getId()+"/status",Map.of("status","CANCELLED","note","Cannot cancel after pickup"));
+        assertThat(shopOrders.findById(part.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.PICKED_UP);
+        progress(s,sh,"SHIPPING",false,"");progress(s,sh,"FAILED",false,"");
+        assertThat(shipments.findById(sh.getId()).orElseThrow().getStatus()).isEqualTo(ShipmentStatus.SHIPPING);
+        progress(s,sh,"FAILED",false,"Customer unavailable <script>");
+        assertThat(shipments.findById(sh.getId()).orElseThrow().getStatus()).isEqualTo(ShipmentStatus.FAILED);
+        assertThat(shopOrders.findById(part.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.SHIPPING);
+        assertThat(get(s,"/shipper/shipments/"+sh.getId()).body()).contains("Customer unavailable &lt;script&gt;").doesNotContain("Customer unavailable <script>");
+        assertThat(inventory.findById(f.stock().getId()).orElseThrow().getQuantity()).isEqualTo(3);
+        progress(s,sh,"SHIPPING",false,"Retry");progress(s,sh,"DELIVERED",false,"");
+        assertThat(orders.findById(id).orElseThrow().getPaymentStatus()).isEqualTo("UNPAID");
+        verifyNoInteractions(mailSender);
+        progress(s,sh,"DELIVERED",true,"");progress(s,sh,"DELIVERED",true,"");
+        var finished=shipments.findById(sh.getId()).orElseThrow();assertThat(finished.getStatus()).isEqualTo(ShipmentStatus.DELIVERED);
+        assertThat(finished.getPickedUpAt()).isNotNull();assertThat(finished.getDeliveredAt()).isNotNull();
+        assertThat(orders.findById(id).orElseThrow().getPaymentStatus()).isEqualTo("PAID");
+        assertThat(inventory.findById(f.stock().getId()).orElseThrow().getQuantity()).isEqualTo(3);
+        verify(mailSender,times(1)).send(any(SimpleMailMessage.class));
+        assertThat(get(s,"/shipper/statistics").statusCode()).isEqualTo(200);
+        jdbc.update("DELETE FROM user_roles WHERE user_id=? AND role_id IN (SELECT id FROM roles WHERE name='ROLE_SHIPPER')",s.user().getId());
+        assertThat(get(s,"/shipper").statusCode()).isEqualTo(403);
+        assertThat(progress(s,sh,"SHIPPING",false,"").statusCode()).isEqualTo(403);
+    }
+    @Test void failedReturnRequiresAdminAndRestoresStockExactlyOnce() throws Exception {
+        var admin=session(true);var seller=vendor();var buyer=session(false);var s=courier();var f=fixture(seller);
+        var id=place(buyer,f);var part=shopOrders.findByOrderId(id).getFirst();var sh=assign(admin,s,part.getId());
+        progress(s,sh,"PICKED_UP",false,"");progress(s,sh,"SHIPPING",false,"");progress(s,sh,"FAILED",false,"Customer refused");
+        post(seller,"/seller/orders/"+part.getId()+"/status",Map.of("status","CANCELLED","note","Not allowed"));
+        assertThat(shipments.findById(sh.getId()).orElseThrow().getStatus()).isEqualTo(ShipmentStatus.FAILED);
+        var path="/admin/orders/"+part.getId()+"/status";
+        post(admin,path,Map.of("status","CANCELLED"));assertThat(inventory.findById(f.stock().getId()).orElseThrow().getQuantity()).isEqualTo(3);
+        post(admin,path,Map.of("status","CANCELLED","note","Received returned parcel"));
+        post(admin,path,Map.of("status","CANCELLED","note","Duplicate"));progress(s,sh,"SHIPPING",false,"");
+        assertThat(shipments.findById(sh.getId()).orElseThrow().getStatus()).isEqualTo(ShipmentStatus.CANCELLED);
+        assertThat(inventory.findById(f.stock().getId()).orElseThrow().getQuantity()).isEqualTo(5);
+        assertThat(orders.findById(id).orElseThrow().getPaymentStatus()).isEqualTo("CANCELLED");verifyNoInteractions(mailSender);
+    }
+    @Test void assignedCancellationClosesShipmentAndPickupCannotReopenIt() throws Exception {
+        var admin=session(true);var buyer=session(false);var s=courier();var f=fixture(buyer);
+        var id=place(buyer,f);var part=shopOrders.findByOrderId(id).getFirst();var sh=assign(admin,s,part.getId());
+        post(admin,"/admin/orders/"+part.getId()+"/status",Map.of("status","CANCELLED","note","Before pickup"));
+        progress(s,sh,"PICKED_UP",false,"");
+        assertThat(shipments.findById(sh.getId()).orElseThrow().getStatus()).isEqualTo(ShipmentStatus.CANCELLED);
+        assertThat(shopOrders.findById(part.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(inventory.findById(f.stock().getId()).orElseThrow().getQuantity()).isEqualTo(5);
+    }
+    @Test void legacyAssignmentCannotSkipShopConfirmation() throws Exception {
+        var admin=session(true);var buyer=session(false);var s=courier();var f=fixture(buyer);
+        var id=place(buyer,f);var part=shopOrders.findByOrderId(id).getFirst();var sh=assign(admin,s,part.getId());
+        jdbc.update("UPDATE shop_orders SET status='NEW' WHERE id=?",part.getId());
+        progress(s,sh,"PICKED_UP",false,"");
+        assertThat(shipments.findById(sh.getId()).orElseThrow().getStatus()).isEqualTo(ShipmentStatus.ASSIGNED);
+        assertThat(shopOrders.findById(part.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.NEW);
+        verifyNoInteractions(mailSender);
+    }
+    @Test void statisticsUseVietnamAssignmentDatesAndNeverIncludeAnotherShippersOrders() throws Exception {
+        var admin=session(true);var buyer=session(false);var s=courier();var other=courier();var f=fixture(buyer);
+        var id=place(buyer,f);var part=shopOrders.findByOrderId(id).getFirst();var sh=assign(admin,s,part.getId());
+        progress(s,sh,"PICKED_UP",false,"");progress(s,sh,"SHIPPING",false,"");progress(s,sh,"DELIVERED",true,"");
+        // 17:00 UTC is the start of the next day in Vietnam.
+        jdbc.update("UPDATE shipments SET assigned_at=? WHERE id=?",java.time.LocalDateTime.of(2026,10,25,17,0),sh.getId());
+        var id2=place(buyer,f);var part2=shopOrders.findByOrderId(id2).getFirst();assign(admin,other,part2.getId());
+        var auth=org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(s.user().getUsername(),"",List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_SHIPPER")));
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+        try {
+            var day=java.time.LocalDate.of(2026,10,26);
+            var stats=shipping.dashboard(s.user().getUsername(),"",null,day,day,0);
+            assertThat(stats.get("total")).isEqualTo(1);assertThat((BigDecimal)stats.get("collected")).isEqualByComparingTo("200000");
+            assertThat(stats.get("rate")).isEqualTo(100L);
+            assertThat(shipping.dashboard(s.user().getUsername(),"",null,day.minusDays(1),day.minusDays(1),0).get("total")).isEqualTo(0);
+            var searched=shipping.dashboard(s.user().getUsername(),"no match",ShipmentStatus.FAILED,day,day,99);
+            assertThat(searched.get("filteredTotal")).isEqualTo(0);assertThat(searched.get("total")).isEqualTo(1);
+        } finally {org.springframework.security.core.context.SecurityContextHolder.clearContext();}
+        assertThat(get(s,"/shipper?from=2026-10-26&to=2026-10-26").body()).contains("Đơn shop #"+part.getId()).doesNotContain("Đơn shop #"+part2.getId());
+        assertThat(get(s,"/shipper?from=2026-10-27&to=2026-10-26").statusCode()).isEqualTo(200);
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"BANK","COD"})
+    void prepaidDeliveryDoesNotRequireCodAndLoyaltyIsIssuedOnceAfterDelivery(String method) throws Exception {
+        var admin=session(true);var buyer=session(false);var s=courier();var f=fixture(buyer);
+        var id=place(buyer,f);var part=shopOrders.findByOrderId(id).getFirst();
+        // Simulate an order settled by a payment provider before shipping.
+        jdbc.update("UPDATE orders SET payment_method=?, payment_status='PAID', total_amount=600000 WHERE id=?",method,id);
+        jdbc.update("UPDATE shop_orders SET subtotal=600000,total_amount=600000 WHERE id=?",part.getId());
+        var sh=assign(admin,s,part.getId());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM vouchers",Integer.class)).isZero();
+        progress(s,sh,"PICKED_UP",false,"");progress(s,sh,"SHIPPING",false,"");progress(s,sh,"DELIVERED",false,"");
+        progress(s,sh,"DELIVERED",false,"");
+        assertThat(shipments.findById(sh.getId()).orElseThrow().getCodCollectedAmount()).isEqualByComparingTo("0");
+        post(s,"/shipper/shipments/"+sh.getId()+"/cod/remit",Map.of("amount","600000","confirmed",true));
+        assertThat(shipments.findById(sh.getId()).orElseThrow().getCodRemittedAt()).isNull();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM vouchers WHERE source_order_id=?",Integer.class,id)).isEqualTo(1);
+        verify(mailSender,times(1)).send(any(SimpleMailMessage.class));
     }
     @Test void sellerCanManageOwnOrdersButCannotReadOrChangeAnotherShop() throws Exception {
         var a=vendor();var b=vendor();var buyer=session(false);var fa=fixture(a);var fb=fixture(b);
@@ -90,7 +320,10 @@ class AdminManagementTests {
         assertThat(inventory.findById(fb.stock().getId()).orElseThrow().getQuantity()).isEqualTo(3);
         assertThat(request(a.client(),"/seller/orders/"+partA.getId()+"/status","status=DELIVERED",null).statusCode()).isEqualTo(403);
         assertThat(post(a,"/seller/orders/"+partA.getId()+"/status",Map.of("status","DELIVERED")).statusCode()).isEqualTo(302);
-        assertThat(orders.findById(idA).orElseThrow().getPaymentStatus()).isEqualTo("PAID");
+        assertThat(shopOrders.findById(partA.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.NEW);
+        post(a,"/seller/orders/"+partA.getId()+"/status",Map.of("status","CONFIRMED"));
+        assertThat(shopOrders.findById(partA.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        assertThat(orders.findById(idA).orElseThrow().getPaymentStatus()).isEqualTo("UNPAID");
         assertThat(get(a,"/admin/orders").statusCode()).isEqualTo(403);
         assertThat(get(buyer,"/seller/orders").statusCode()).isEqualTo(403);
         jdbc.update("DELETE FROM user_roles WHERE user_id=? AND role_id IN (SELECT id FROM roles WHERE name='ROLE_VENDOR')",a.user().getId());
@@ -144,7 +377,7 @@ class AdminManagementTests {
         r.setToken(UUID.randomUUID().toString());r.setExpectedTotal(new BigDecimal("400000"));var id=checkout.place(buyer.user().getUsername(),r);
         var parts=shopOrders.findByOrderId(id);var partA=parts.stream().filter(o->o.getShop().getId().equals(fa.shop().getId())).findFirst().orElseThrow();
         var partB=parts.stream().filter(o->o.getShop().getId().equals(fb.shop().getId())).findFirst().orElseThrow();
-        post(admin,"/admin/orders/"+partA.getId()+"/status",Map.of("status","DELIVERED"));
+        deliver(admin,partA.getId());
         verifyNoInteractions(mailSender);
         assertThat(post(buyer,"/orders/"+id+"/cancel",Map.of("reason","Cancel pending shop")).statusCode()).isEqualTo(302);
         assertThat(shopOrders.findById(partA.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.DELIVERED);
@@ -168,14 +401,14 @@ class AdminManagementTests {
             catch(Exception ex) { throw new java.util.concurrent.CompletionException(ex); }
         });
         var approve=java.util.concurrent.CompletableFuture.supplyAsync(()->{
-            try { return post(admin,"/admin/orders/"+part.getId()+"/status",Map.of("status","DELIVERED")).statusCode(); }
+            try { return post(admin,"/admin/orders/"+part.getId()+"/status",Map.of("status","CONFIRMED")).statusCode(); }
             catch(Exception ex) { throw new java.util.concurrent.CompletionException(ex); }
         });
         assertThat(cancel.get()).isEqualTo(302);assertThat(approve.get()).isEqualTo(302);
         var status=shopOrders.findById(part.getId()).orElseThrow().getStatus();
-        assertThat(status).isIn(OrderStatus.CANCELLED,OrderStatus.DELIVERED);
+        assertThat(status).isIn(OrderStatus.CANCELLED,OrderStatus.CONFIRMED);
         assertThat(inventory.findById(f.stock().getId()).orElseThrow().getQuantity()).isEqualTo(status==OrderStatus.CANCELLED?5:3);
-        assertThat(orders.findById(id).orElseThrow().getPaymentStatus()).isEqualTo(status==OrderStatus.CANCELLED?"CANCELLED":"PAID");
+        assertThat(orders.findById(id).orElseThrow().getPaymentStatus()).isEqualTo(status==OrderStatus.CANCELLED?"CANCELLED":"UNPAID");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM order_status_history WHERE shop_order_id=?",Integer.class,part.getId())).isEqualTo(2);
     }
     @Test void allAdminPagesRenderAndCustomerCannotMutateAnyShop() throws Exception {
@@ -217,18 +450,22 @@ class AdminManagementTests {
         assertThat(inventory.findByStoreIdAndProductVariantId(b.store().getId(),a.variant().getId())).isEmpty();
         assertThat(inventory.availableQuantity(a.variant().getId())).isEqualTo(5);
     }
-    @Test void adminConfirmationImmediatelyMarksDeliveredAndCodPaidWithoutDeductingStockAgain() throws Exception {
+    @Test void confirmationWaitsForShipperAndDeliveryPaysCodWithoutDeductingStockAgain() throws Exception {
         var admin=session(true);var buyer=session(false);var f=fixture(buyer);var id=place(buyer,f);var so=shopOrders.findByOrderId(id).getFirst();var path="/admin/orders/"+so.getId()+"/status";
-        assertThat(get(admin,"/admin/orders/"+so.getId()).body()).contains("Xác nhận đã giao &amp; đã thanh toán");
+        assertThat(get(admin,"/admin/orders/"+so.getId()).body()).contains("Xác nhận đơn").doesNotContain("value=\"DELIVERED\"");
         post(admin,path,Map.of("status","SHIPPING"));assertThat(shopOrders.findById(so.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.NEW);
         verifyNoInteractions(mailSender);
         post(admin,path,Map.of("status","CONFIRMED","note","Approved"));
+        assertThat(shopOrders.findById(so.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        assertThat(orders.findById(id).orElseThrow().getPaymentStatus()).isEqualTo("UNPAID");
+        verifyNoInteractions(mailSender);
+        deliver(admin,so.getId());
         assertThat(shopOrders.findById(so.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.DELIVERED);
         assertThat(get(buyer,"/orders/"+id).body()).contains("Đã giao hàng","Đã thanh toán");
         post(admin,path,Map.of("status","DELIVERED","note","Duplicate"));
         assertThat(orders.findById(id).orElseThrow().getPaymentStatus()).isEqualTo("PAID");
         assertThat(inventory.findById(f.stock().getId()).orElseThrow().getQuantity()).isEqualTo(3);
-        assertThat(get(admin,"/admin/orders/"+so.getId()).body()).contains("Approved","Xác nhận đã giao và đã thanh toán COD.");
+        assertThat(get(admin,"/admin/orders/"+so.getId()).body()).contains("Approved","Giao thành công");
         post(admin,path,Map.of("status","CANCELLED","note","Invalid late cancellation"));assertThat(shopOrders.findById(so.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.DELIVERED);
         var mail=org.mockito.ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(mailSender,times(1)).send(mail.capture());
@@ -241,9 +478,9 @@ class AdminManagementTests {
         var part=shopOrders.findByOrderId(id).getFirst();
         doThrow(new org.springframework.mail.MailSendException("SMTP unavailable")).when(mailSender).send(any(SimpleMailMessage.class));
         var path="/admin/orders/"+part.getId()+"/status";
-        assertThat(post(admin,path,Map.of("status","DELIVERED")).statusCode()).isEqualTo(302);
+        assertThat(deliver(admin,part.getId()).statusCode()).isEqualTo(302);
         assertThat(orders.findById(id).orElseThrow().getPaymentStatus()).isEqualTo("PAID");
-        assertThat(post(admin,path,Map.of("status","DELIVERED")).statusCode()).isEqualTo(302);
+        assertThat(deliver(admin,part.getId()).statusCode()).isEqualTo(302);
         verify(mailSender,times(1)).send(any(SimpleMailMessage.class));
     }
     @Test void rolledBackConfirmationDoesNotSendEmail() throws Exception {
@@ -266,11 +503,11 @@ class AdminManagementTests {
         var r=new CheckoutRequest();r.setReceiverName("Buyer");r.setReceiverPhone("0901234567");r.setShippingAddress("12 Test Street");
         r.setToken(UUID.randomUUID().toString());r.setExpectedTotal(new BigDecimal("400000"));
         var id=checkout.place(buyer.user().getUsername(),r);var parts=shopOrders.findByOrderId(id);
-        assertThat(post(admin,"/admin/orders/"+parts.getFirst().getId()+"/status",Map.of("status","DELIVERED")).statusCode()).isEqualTo(302);
+        assertThat(deliver(admin,parts.getFirst().getId()).statusCode()).isEqualTo(302);
         verifyNoInteractions(mailSender);
         var lastPath="/admin/orders/"+parts.getLast().getId()+"/status";
-        assertThat(post(admin,lastPath,Map.of("status","DELIVERED")).statusCode()).isEqualTo(302);
-        post(admin,lastPath,Map.of("status","DELIVERED"));
+        assertThat(deliver(admin,parts.getLast().getId()).statusCode()).isEqualTo(302);
+        deliver(admin,parts.getLast().getId());
         var mail=org.mockito.ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(mailSender,times(1)).send(mail.capture());
         assertThat(mail.getValue().getTo()).containsExactly(buyer.user().getEmail());
@@ -312,7 +549,7 @@ class AdminManagementTests {
         assertThat(inventory.findById(extra.getId()).orElseThrow().getQuantity()).isEqualTo(5);
         assertThat(orders.findById(id).orElseThrow().getTotalAmount()).isEqualByComparingTo("200000");
         assertThat(orders.findById(id).orElseThrow().getPaymentStatus()).isEqualTo("UNPAID");
-        post(admin,"/admin/orders/"+partB.getId()+"/status",Map.of("status","DELIVERED"));
+        deliver(admin,partB.getId());
         assertThat(orders.findById(id).orElseThrow().getPaymentStatus()).isEqualTo("PAID");
     }
 }

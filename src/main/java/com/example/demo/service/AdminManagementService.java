@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service @Transactional(readOnly=true) @PreAuthorize("hasRole('ADMIN')")
 public class AdminManagementService {
+    @jakarta.persistence.PersistenceContext private jakarta.persistence.EntityManager entityManager;
     private final ShopRepository shops; private final ProductRepository products; private final CategoryRepository categories;
     private final UserRepository users; private final StoreRepository stores; private final ProductVariantRepository variants;
     private final InventoryRepository inventory; private final ShopOrderRepository shopOrders; private final OrderEntityRepository orders;
@@ -23,13 +24,14 @@ public class AdminManagementService {
     private final OrderStockService orderStock;
     private final AccessService access;
     private final PurchaseConfirmationService confirmations;
+    private final ShipmentRepository shipments;
     public AdminManagementService(ShopRepository shops,ProductRepository products,CategoryRepository categories,UserRepository users,
             StoreRepository stores,ProductVariantRepository variants,InventoryRepository inventory,ShopOrderRepository shopOrders,
-            OrderEntityRepository orders,OrderStatusHistoryRepository history,OrderStockAllocationRepository allocations,CheckoutService checkout,AccessService access,OrderStockService orderStock,PurchaseConfirmationService confirmations) {
+            OrderEntityRepository orders,OrderStatusHistoryRepository history,OrderStockAllocationRepository allocations,CheckoutService checkout,AccessService access,OrderStockService orderStock,PurchaseConfirmationService confirmations,ShipmentRepository shipments) {
         this.shops=shops;this.products=products;this.categories=categories;this.users=users;this.stores=stores;
         this.variants=variants;this.inventory=inventory;this.shopOrders=shopOrders;this.orders=orders;this.history=history;
         this.allocations=allocations;this.checkout=checkout;this.access=access;this.orderStock=orderStock;
-        this.confirmations=confirmations;
+        this.confirmations=confirmations;this.shipments=shipments;
     }
     private <T> T found(Optional<T> value) { return value.orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND)); }
     private String text(String s) { return s==null?"":s; }
@@ -125,8 +127,9 @@ public class AdminManagementService {
             throw new org.springframework.security.access.AccessDeniedException("Bạn chưa có quyền quản lý shop.");
         return notices(user.getId());
     }
-    public record OrderRow(Long id,Long orderId,String shop,String customer,String status,String statusLabel,BigDecimal total) {}
-    private OrderRow orderRow(ShopOrder s) { return new OrderRow(s.getId(),s.getOrder().getId(),s.getShop().getName(),s.getOrder().getUser().getUsername(),s.getStatus().name(),CheckoutService.statusLabel(s.getStatus().name()),s.getTotalAmount()); }
+    public record OrderRow(Long id,Long orderId,String shop,String customer,String status,String statusLabel,BigDecimal total,String codSettlementLabel) {}
+    private OrderRow orderRow(ShopOrder s) { return new OrderRow(s.getId(),s.getOrder().getId(),s.getShop().getName(),s.getOrder().getUser().getUsername(),s.getStatus().name(),CheckoutService.statusLabel(s.getStatus().name()),s.getTotalAmount(),
+            (String)CodSettlementService.describe(shipments.findByShopOrderId(s.getId()).orElse(null)).get("label")); }
     public Page<OrderRow> orders(int page) { return shopOrders.findAll(PageRequest.of(Math.max(0,Math.min(page,10000)),20,Sort.by("id").descending())).map(this::orderRow); }
     @PreAuthorize("hasAnyRole('VENDOR','ADMIN')")
     public Page<OrderRow> sellerOrders(String actor,int page) {
@@ -159,19 +162,23 @@ public class AdminManagementService {
     }
     public Map<String,Object> order(Long id) {
         var s=found(shopOrders.findById(id));
-        return orderDetails(s,checkout.get(s.getOrder().getUser().getUsername(),s.getOrder().getId()));
+        var result=new LinkedHashMap<>(orderDetails(s,checkout.get(s.getOrder().getUser().getUsername(),s.getOrder().getId())));
+        if(shipments.findByShopOrderId(id).filter(sh->sh.getStatus()==ShipmentStatus.FAILED).isPresent()) {
+            result.put("nextStatuses",List.of(OrderStatus.CANCELLED));result.put("returnToStock",true);
+        }
+        return result;
     }
     private Map<String,Object> orderDetails(ShopOrder s,CheckoutService.Receipt receipt) {
         var id=s.getId();
-        var events=history.findAll().stream().filter(h->h.getShopOrder().getId().equals(id)).sorted(Comparator.comparing(OrderStatusHistory::getId))
+        var events=history.findByShopOrderIdOrderByChangedAtAscIdAsc(id).stream().sorted(Comparator.comparing(OrderStatusHistory::getId))
                 .map(h->Map.<String,Object>of("status",CheckoutService.statusLabel(h.getStatus().name()),"note",text(h.getNote()),"time",h.getChangedAt().atOffset(java.time.ZoneOffset.UTC).atZoneSameInstant(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")))).toList();
-        return Map.of("shopOrder",orderRow(s),"order",receipt,"nextStatuses",next(s.getStatus()),"events",events);
+        return Map.of("shopOrder",orderRow(s),"order",receipt,"nextStatuses",next(s.getStatus()),"events",events,
+                "codSettlement",CodSettlementService.describe(shipments.findByShopOrderId(id).orElse(null)));
     }
     private List<OrderStatus> next(OrderStatus status) {
         return switch(status) {
-            case NEW, CONFIRMED -> List.of(OrderStatus.DELIVERED,OrderStatus.CANCELLED);
-            case PICKED_UP -> List.of(OrderStatus.DELIVERED);
-            case SHIPPING -> List.of(OrderStatus.DELIVERED);
+            case NEW -> List.of(OrderStatus.CONFIRMED,OrderStatus.CANCELLED);
+            case CONFIRMED -> List.of(OrderStatus.CANCELLED);
             default -> List.of();
         };
     }
@@ -185,20 +192,28 @@ public class AdminManagementService {
     }
     private void updateStatus(String actor,Long id,StatusForm form) {
         var parent=found(orders.lockById(found(shopOrders.parentOrderId(id))));
-        boolean alreadyCompleted = confirmations.completed(parent);
         var s=found(shopOrders.findById(id));
-        // Also accept confirmation submitted from an older, already-open admin page.
-        var target=form.status()==OrderStatus.CONFIRMED?OrderStatus.DELIVERED:form.status();
+        // Seller ownership checks can load the entity before the parent lock is acquired.
+        entityManager.refresh(s);
+        boolean alreadyCompleted = confirmations.completed(parent);
+        var target=form.status();
         if(s.getStatus()==target)return;
-        if(!next(s.getStatus()).contains(target))throw new IllegalArgumentException("Không thể chuyển trạng thái đơn theo cách này.");
+        var shipment=shipments.findByShopOrderId(id);
+        boolean returning=target==OrderStatus.CANCELLED && s.getStatus()==OrderStatus.SHIPPING
+                && shipment.filter(sh->sh.getStatus()==ShipmentStatus.FAILED).isPresent()
+                && access.has(access.account(actor),RoleName.ROLE_ADMIN);
+        if(!returning&&!next(s.getStatus()).contains(target))throw new IllegalArgumentException("Không thể chuyển trạng thái đơn theo cách này.");
         if(target==OrderStatus.CANCELLED) {
             if(form.note()==null||form.note().isBlank())throw new IllegalArgumentException("Vui lòng ghi lý do hủy hoặc từ chối đơn.");
+            if(shipment.isPresent() && shipment.get().getStatus()!=ShipmentStatus.ASSIGNED && !returning)
+                throw new IllegalArgumentException("Hàng đã được lấy; chỉ Admin xác nhận nhận lại hàng sau giao thất bại mới được hoàn kho.");
             orderStock.restore(s);
+            shipment.ifPresent(sh->sh.setStatus(ShipmentStatus.CANCELLED));
             parent.setTotalAmount(parent.getTotalAmount().subtract(s.getTotalAmount()));
             s.setTotalAmount(BigDecimal.ZERO);
         }
         s.setStatus(target);
-        var event=new OrderStatusHistory();event.setShopOrder(s);event.setStatus(target);event.setNote("Admin "+actor+": "+(target==OrderStatus.DELIVERED?"Xác nhận đã giao và đã thanh toán COD. ":"")+text(form.note()));
+        var event=new OrderStatusHistory();event.setShopOrder(s);event.setStatus(target);event.setNote("Shop/Admin "+actor+": "+(returning?"Đã nhận lại hàng và hoàn tồn kho. ":"")+text(form.note()));
         if(event.getNote().length()>2000)event.setNote(event.getNote().substring(0,2000));history.save(event);
         var all=parent.getShopOrders();
         if(all.stream().allMatch(o->o.getStatus()==OrderStatus.CANCELLED))parent.setPaymentStatus("CANCELLED");

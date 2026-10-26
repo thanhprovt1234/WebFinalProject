@@ -20,8 +20,4 @@ public class WorkspaceController {
     public String manager(Principal principal,Model model){model.addAttribute("stores",access.managerStores(principal.getName()));model.addAttribute("section","manager");return "workspace/dashboard";}
     @GetMapping("/manager/stores/{id}")
     public String store(Principal principal,@PathVariable Long id,Model model){model.addAllAttributes(access.managerStore(principal.getName(),id));model.addAttribute("section","store");return "workspace/dashboard";}
-    @GetMapping("/shipper")
-    public String shipper(Principal principal,Model model){model.addAttribute("shipments",access.shipperShipments(principal.getName()));model.addAttribute("section","shipper");return "workspace/dashboard";}
-    @GetMapping("/shipper/shipments/{id}")
-    public String shipment(Principal principal,@PathVariable Long id,Model model){model.addAttribute("shipment",access.shipperShipment(principal.getName(),id));model.addAttribute("section","shipment");return "workspace/dashboard";}
 }
