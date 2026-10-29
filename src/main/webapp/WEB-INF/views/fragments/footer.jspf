@@ -74,7 +74,8 @@
 <dialog id="cart-dialog" class="cart-dialog" data-image-base="${pageContext.request.contextPath}/images/products/ao-thun-co-tron/" data-context="${pageContext.request.contextPath}" data-api="${pageContext.request.contextPath}/api/cart" data-authenticated="${not empty pageContext.request.userPrincipal}" aria-labelledby="cart-title">
   <div class="cart-heading"><h2 id="cart-title">Giỏ hàng của bạn</h2><button type="button" id="close-cart" aria-label="Đóng giỏ hàng">×</button></div>
   <p id="shared-cart-status" role="status"></p>
-  <p id="cart-login" hidden><a href="${pageContext.request.contextPath}/login">Đăng nhập</a> để lưu và xem giỏ hàng của bạn trên mọi thiết bị.</p>
+  <p id="cart-login" hidden>Bạn có thể thêm sản phẩm ngay. Khi thanh toán, hãy <a href="${pageContext.request.contextPath}/checkout">đăng nhập</a>; giỏ hàng sẽ được giữ lại.</p>
+  <c:if test="${not empty sessionScope.cartMergeNotice}"><p role="status"><c:out value="${sessionScope.cartMergeNotice}" /></p><c:remove var="cartMergeNotice" scope="session" /></c:if>
   <div id="cart-items"></div>
   <button type="button" id="cart-retry" hidden>Tải lại giỏ hàng</button>
   <p class="cart-total">Tổng cộng: <strong id="cart-total">0 VNĐ</strong></p>

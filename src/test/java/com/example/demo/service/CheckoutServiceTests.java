@@ -29,6 +29,62 @@ class CheckoutServiceTests {
     @Autowired VoucherRepository voucherRepository;
     @Autowired PurchaseConfirmationService confirmations;
     @Autowired CustomerOrderService customerOrders;
+    @Autowired AdminVoucherService adminVouchers;
+    @Autowired RoleRepository roles;
+    @Autowired VoucherCampaignRepository campaigns;
+    private Long giftCampaign(Fixture buyer,String type,String value,String minimum,String maximum) {
+        for(var name:java.util.List.of(RoleName.ROLE_USER,RoleName.ROLE_ADMIN)) {
+            var role=roles.findByName(name).orElseGet(()->{var r=new Role();r.setName(name);return roles.save(r);});
+            buyer.user().addRole(role);
+        }
+        users.flush();
+        var form=new VoucherCampaignForm();form.setName("Lucky gift");form.setDiscountType(type);
+        form.setDiscountValue(new BigDecimal(value));form.setMinimumTotal(new BigDecimal(minimum));
+        form.setMaximumDiscount(maximum==null?null:new BigDecimal(maximum));
+        form.setExpiryDate(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).plusDays(3));
+        var id=adminVouchers.create(buyer.user().getUsername(),form);
+        adminVouchers.issue(buyer.user().getUsername(),id,java.util.List.of(buyer.user().getId()));return id;
+    }
+    @Test void fixedGiftChecksMinimumAndDistributesExactDiscountAcrossShops() {
+        var buyer=fixture();var second=fixture();
+        var campaignId=giftCampaign(buyer,"FIXED","50000","300000",null);
+        var code=vouchers.available(buyer.user().getUsername()).getFirst();
+        assertThatThrownBy(()->vouchers.preview(buyer.user().getUsername(),code,new BigDecimal("240000")))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("tối thiểu");
+        var add=new CartAddRequest();add.setProductId(second.product().getSlug());add.setSize("M");add.setColor("Trắng");add.setQuantity(1);
+        carts.add(buyer.user().getUsername(),add);
+        var req=request(new BigDecimal("310000"));req.setVoucherCode(code);
+        var order=checkout.get(buyer.user().getUsername(),checkout.place(buyer.user().getUsername(),req));
+        assertThat(order.discount()).isEqualByComparingTo("50000");
+        assertThat(order.shops().stream().map(CheckoutService.ShopView::total).reduce(BigDecimal.ZERO,BigDecimal::add))
+                .isEqualByComparingTo("310000");
+        assertThatThrownBy(()->adminVouchers.revoke(buyer.user().getUsername(),campaignId,
+                voucherRepository.findByCampaignIdOrderByIdDesc(campaignId).getFirst().getId()))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("đã sử dụng");
+    }
+    @Test void percentGiftHonorsCapExpiryRevocationAndCannotExceedOrderTotal() {
+        var buyer=fixture();var id=giftCampaign(buyer,"PERCENT","20","0","40000");
+        var name=buyer.user().getUsername();var gift=voucherRepository.findByCampaignIdOrderByIdDesc(id).getFirst();
+        assertThat(vouchers.preview(name,gift.getCode(),new BigDecimal("360000"))).isEqualByComparingTo("40000");
+        var c=campaigns.findById(id).orElseThrow();c.setExpiresAt(java.time.Instant.now().minusSeconds(1));
+        assertThat(vouchers.available(name)).isEmpty();
+        assertThatThrownBy(()->vouchers.preview(name,gift.getCode(),new BigDecimal("360000"))).isInstanceOf(ResponseStatusException.class);
+        c.setExpiresAt(java.time.Instant.now().plusSeconds(3600));adminVouchers.revoke(name,id,gift.getId());
+        assertThatThrownBy(()->vouchers.preview(name,gift.getCode(),new BigDecimal("360000"))).isInstanceOf(ResponseStatusException.class);
+        var fixedId=giftCampaign(buyer,"FIXED","999999","0",null);
+        var fixed=voucherRepository.findByCampaignIdOrderByIdDesc(fixedId).getFirst();
+        assertThat(vouchers.preview(name,fixed.getCode(),new BigDecimal("240000"))).isEqualByComparingTo("240000");
+        var req=request(BigDecimal.ZERO);req.setVoucherCode(fixed.getCode());
+        assertThat(checkout.get(name,checkout.place(name,req)).total()).isEqualByComparingTo("0");
+    }
+    @Test void zeroPricedProductsDoNotCauseVoucherAllocationDivisionByZero() {
+        var buyer=fixture();buyer.variant().setPrice(BigDecimal.ZERO);variants.flush();
+        giftCampaign(buyer,"FIXED","50000","0",null);
+        var name=buyer.user().getUsername();var req=request(BigDecimal.ZERO);
+        req.setVoucherCode(vouchers.available(name).getFirst());
+        var receipt=checkout.get(name,checkout.place(name,req));
+        assertThat(receipt.total()).isEqualByComparingTo("0");assertThat(receipt.discount()).isEqualByComparingTo("0");
+    }
     record Fixture(User user, Product product,ProductVariant variant,Inventory stock) {}
     private Fixture fixture() {
         var key=UUID.randomUUID().toString();

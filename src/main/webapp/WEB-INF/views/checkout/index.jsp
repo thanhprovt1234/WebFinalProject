@@ -22,10 +22,10 @@
         <label for="voucherCode">Mã giảm giá</label>
         <form:input path="voucherCode" id="voucherCode" maxlength="40" placeholder="Nhập mã voucher" autocomplete="off" aria-describedby="voucher-help" />
         <button type="submit" name="action" value="apply" formnovalidate="formnovalidate" class="checkout-button">Áp dụng mã</button>
-        <p id="voucher-help">Mỗi mã giảm 10%, dùng một lần cho tài khoản được tặng.</p>
+        <p id="voucher-help">Mỗi mã dùng một lần cho tài khoản được tặng. Xem điều kiện và hạn dùng của từng mã bên dưới.</p>
         <c:if test="${not empty voucherError}"><p class="text-danger" role="alert"><c:out value="${voucherError}" /></p></c:if>
-        <c:if test="${discount > 0}"><p role="status">Đã áp dụng mã giảm 10%.</p></c:if>
-        <c:forEach var="code" items="${vouchers}"><p>Mã có thể dùng: <strong><c:out value="${code}" /></strong></p></c:forEach>
+        <c:if test="${discount > 0}"><p role="status">Đã áp dụng mã, giảm <fmt:formatNumber value="${discount}" />đ.</p></c:if>
+        <%@ include file="voucher-wallet.jspf" %>
         <fieldset><legend>Phương thức thanh toán</legend><label><input type="radio" checked disabled /> Thanh toán khi nhận hàng (COD)</label><p>Chưa thu tiền khi đặt hàng.</p></fieldset>
         <c:choose><c:when test="${canOrder}"><button type="submit" class="checkout-button">Xác nhận đặt hàng COD</button></c:when><c:otherwise><p role="status">Giỏ hàng trống hoặc có sản phẩm không đủ tồn kho. Hãy cập nhật giỏ hàng trước khi đặt.</p><button type="button" data-open-cart class="checkout-button">Mở giỏ hàng</button></c:otherwise></c:choose>
       </form:form>

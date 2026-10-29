@@ -122,10 +122,12 @@ class CheckoutHttpTests {
         var result=first.get(); assertThat(result.statusCode()).isEqualTo(302);
         assertThat(second.get().headers().firstValue("Location")).isEqualTo(result.headers().firstValue("Location"));
         var location=URI.create(result.headers().firstValue("Location").orElseThrow());
-        assertThat(location.getPath()).isEqualTo("/orders");
-        assertThat(location.getQuery()).startsWith("placed=");
-        var orderId=Long.valueOf(location.getQuery().substring("placed=".length()));
-        var list=c.send(request("/orders?"+location.getQuery(),null,null),HttpResponse.BodyHandlers.ofString());
+        assertThat(location.getPath()).isEqualTo("/");
+        assertThat(location.getQuery()).isNull();
+        var home=c.send(request(location.getPath(),null,null),HttpResponse.BodyHandlers.ofString());
+        assertThat(home.statusCode()).isEqualTo(200);
+        var orderId=jdbc.queryForObject("SELECT id FROM orders WHERE user_id=?",Long.class,f.user().getId());
+        var list=c.send(request("/orders?placed="+orderId,null,null),HttpResponse.BodyHandlers.ofString());
         assertThat(list.statusCode()).isEqualTo(200);
         assertThat(list.body()).contains("Đặt hàng thành công!","data-placed-order=\""+orderId+"\"","Chi tiết đơn hàng","Mã đơn hàng:","Ngày đặt:","Địa chỉ giao hàng","12 Test Street","0901234567");
         var path="/orders/"+orderId;
@@ -148,6 +150,26 @@ class CheckoutHttpTests {
         assertThat(inventory.findById(f.stock().getId()).orElseThrow().getQuantity()).isEqualTo(5);
         assertThat(carts.get(f.user().getUsername()).items()).hasSize(1);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders",Integer.class)).isZero();
+    }
+    @Test void guestCartSurvivesLoginAndCanBePurchased() throws Exception {
+        var f=fixture(8); var c=client();
+        var product=c.send(request("/products/"+f.product().getSlug(),null,null),HttpResponse.BodyHandlers.ofString());
+        var added=c.send(request("/api/cart/items","productId="+f.product().getSlug()+"&size=M&color=White&quantity=2",csrf(product.body())),HttpResponse.BodyHandlers.ofString());
+        assertThat(added.statusCode()).isEqualTo(200);
+        assertThat(c.send(request("/checkout",null,null),HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(302);
+        var login=c.send(request("/login",null,null),HttpResponse.BodyHandlers.ofString());
+        var loggedIn=c.send(request("/login","username="+f.user().getUsername()+"&password=test-password",csrf(login.body())),HttpResponse.BodyHandlers.ofString());
+        assertThat(loggedIn.statusCode()).isEqualTo(302);
+        assertThat(URI.create(loggedIn.headers().firstValue("Location").orElseThrow()).getPath()).isEqualTo("/checkout");
+        var page=c.send(request("/checkout",null,null),HttpResponse.BodyHandlers.ofString());
+        assertThat(page.statusCode()).isEqualTo(200);
+        assertThat(carts.get(f.user().getUsername()).count()).isEqualTo(4);
+        var placed=c.send(request("/checkout",body(page.body()).replace("expectedTotal=200000","expectedTotal=400000"),csrf(page.body())),HttpResponse.BodyHandlers.ofString());
+        assertThat(placed.statusCode()).isEqualTo(302);
+        assertThat(URI.create(placed.headers().firstValue("Location").orElseThrow()).getPath()).isEqualTo("/");
+        assertThat(jdbc.queryForObject("SELECT SUM(quantity) FROM order_items",Integer.class)).isEqualTo(4);
+        assertThat(inventory.findById(f.stock().getId()).orElseThrow().getQuantity()).isEqualTo(4);
+        assertThat(carts.get(f.user().getUsername()).items()).isEmpty();
     }
     @Test void concurrentCustomersCannotOversellLastStock() throws Exception {
         var f=fixture(3); var other=account(); add(other,f.product());

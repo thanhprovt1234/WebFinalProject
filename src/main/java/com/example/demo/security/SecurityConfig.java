@@ -13,7 +13,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class SecurityConfig {
 
         @Bean
-        SecurityFilterChain securityFilterChain(HttpSecurity http, CustomUserDetailsService users) throws Exception {
+        SecurityFilterChain securityFilterChain(HttpSecurity http, CustomUserDetailsService users,
+                        com.example.demo.service.GuestCartService guests) throws Exception {
+                var loginSuccess=new org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler();
+                loginSuccess.setDefaultTargetUrl("/");
                 http
                                 .authorizeHttpRequests(auth -> auth
                                                 .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR)
@@ -24,6 +27,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/shipper", "/shipper/**").hasAnyRole("SHIPPER", "ADMIN")
                                                 .requestMatchers(
                                                                 "/",
+                                                                "/api/cart", "/api/cart/**",
                                                                 "/collections/ao-thun-co-tron",
                                                                 "/collections",
                                                                 "/products/*",
@@ -57,7 +61,11 @@ public class SecurityConfig {
                                 .formLogin(form -> form
                                                 .loginPage("/login")
                                                 .loginProcessingUrl("/login")
-                                                .defaultSuccessUrl("/", true)
+                                                .successHandler((request,response,authentication)-> {
+                                                        var session=request.getSession(false);
+                                                        if(session!=null) guests.merge(session,authentication.getName());
+                                                        loginSuccess.onAuthenticationSuccess(request,response,authentication);
+                                                })
                                                 .failureUrl("/login?error")
                                                 .permitAll())
                                 .logout(logout -> logout

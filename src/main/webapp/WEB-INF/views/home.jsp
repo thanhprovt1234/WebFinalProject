@@ -16,6 +16,41 @@
   <div class="campaign-bottom"><span>H2T® — MADE FOR EVERY DAY</span><a href="#collection">CUỘN ĐỂ KHÁM PHÁ <span aria-hidden="true">↓</span></a></div>
 </section>
 <div class="brand-strip" aria-label="Tinh thần H2T"><span>THIẾT KẾ TINH GIẢN</span><span aria-hidden="true">✳</span><span>CHẤT LIỆU CHỌN LỌC</span><span aria-hidden="true">✳</span><span>PHONG CÁCH MỖI NGÀY</span><span aria-hidden="true">✳</span><span>ĐẬM CHẤT RIÊNG</span></div>
+<section class="home-picks catalog-shell" aria-labelledby="home-picks-title" data-home-picks>
+  <div class="picks-heading">
+    <div><p class="picks-eyebrow">THE EVERYDAY EDIT / H2T</p><h2 id="home-picks-title">ĐƯỢC YÊU THÍCH NHẤT</h2><p>Những lựa chọn đáng khám phá cho tủ đồ mỗi ngày.</p></div>
+    <a class="picks-all" href="${pageContext.request.contextPath}/collections">Xem tất cả sản phẩm <span aria-hidden="true">↗</span></a>
+  </div>
+  <div class="picks-tabs" role="tablist" aria-label="Bộ sưu tập nổi bật" hidden>
+    <button id="bestsellers-tab" type="button" role="tab" aria-selected="true" aria-controls="bestsellers-panel" tabindex="0">Bán chạy <span aria-hidden="true">↗</span></button>
+    <button id="deals-tab" type="button" role="tab" aria-selected="false" aria-controls="deals-panel" tabindex="-1">Deal hôm nay <span aria-hidden="true">✳</span></button>
+  </div>
+  <div id="bestsellers-panel" role="tabpanel" aria-labelledby="bestsellers-tab" tabindex="0">
+    <c:choose><c:when test="${not empty bestsellers}">
+      <p class="picks-note">Được mua nhiều nhất · Tính từ các đơn đã giao và thanh toán.</p>
+      <div class="picks-products">
+        <c:forEach var="product" items="${bestsellers}" varStatus="rank">
+          <c:url var="pickImage" value="${product.imageUrl}" />
+          <article class="catalog-product pick-card">
+            <a class="product-photo product-link" href="${pageContext.request.contextPath}/products/${product.id}"><img src="<c:out value='${pickImage}' />" alt="<c:out value='${product.name}' />" loading="lazy" width="600" height="800"><span class="pick-rank">TOP ${rank.count}</span></a>
+            <p class="pick-meta"><span><c:out value="${product.shopName}" /></span><span>Đã bán ${product.soldQuantity}</span></p>
+            <h3><a class="product-link" href="${pageContext.request.contextPath}/products/${product.id}"><c:out value="${product.name}" /></a></h3>
+            <p class="product-price">${product.formattedPrice} VNĐ</p>
+            <a class="pick-buy" href="${pageContext.request.contextPath}/products/${product.id}">Chọn mua <span aria-hidden="true">↗</span></a>
+          </article>
+        </c:forEach>
+      </div>
+      <p class="picks-swipe">Vuốt để khám phá thêm →</p>
+    </c:when><c:otherwise>
+      <div class="picks-empty"><span class="picks-empty-mark" aria-hidden="true">↗</span><h3>Khám phá món đồ yêu thích đầu tiên</h3><p>Bộ sưu tập bán chạy sẽ xuất hiện khi có đơn hàng đã giao và thanh toán.</p><a class="pick-buy" href="${pageContext.request.contextPath}/collections">Khám phá sản phẩm <span aria-hidden="true">↗</span></a></div>
+    </c:otherwise></c:choose>
+  </div>
+  <div id="deals-panel" role="tabpanel" aria-labelledby="deals-tab" tabindex="0">
+    <noscript><h3>Deal hôm nay</h3></noscript>
+    <div class="picks-empty"><span class="picks-empty-mark" aria-hidden="true">✳</span><p class="picks-eyebrow">GOOD THINGS TAKE TIME</p><h3>Hẹn bạn ở đợt ưu đãi tiếp theo</h3><p>Hiện chưa có chương trình Flash Sale. Khám phá các thiết kế mới trong lúc chờ nhé.</p><a class="pick-buy" href="${pageContext.request.contextPath}/collections?sort=newest">Xem sản phẩm mới <span aria-hidden="true">↗</span></a></div>
+  </div>
+</section>
+<script src="${pageContext.request.contextPath}/js/home-collections.js" defer></script>
 <section class="catalog-shell" aria-labelledby="home-products-title">
   <h2 id="home-products-title">Sản phẩm mới từ các shop</h2>
   <div class="product-grid"><c:forEach var="product" items="${homeProducts}">

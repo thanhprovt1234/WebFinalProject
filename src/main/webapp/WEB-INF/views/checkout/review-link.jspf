@@ -1,0 +1,5 @@
+<%@ page pageEncoding="UTF-8" %>
+<c:if test="${shop.status == 'DELIVERED' and not empty item.productId}">
+  <c:url var="reviewUrl" value="/products/${item.productId}"><c:param name="orderId" value="${order.id}" /></c:url>
+  <a class="order-review-link" href="<c:out value='${reviewUrl}' />#review-form"><i class="bi bi-star" aria-hidden="true"></i> Đánh giá sản phẩm<span class="visually-hidden">: <c:out value="${item.name}" /></span></a>
+</c:if>

@@ -56,6 +56,7 @@ public class AuthController {
     @GetMapping("/")
     public String home(Model model) {
         model.addAttribute("homeProducts",catalog.search("newest","",null,"",0).getContent());
+        model.addAttribute("bestsellers",catalog.bestsellers());
         return "home";
     }
 

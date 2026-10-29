@@ -10,5 +10,7 @@ public interface ProductReviewRepository extends JpaRepository<ProductReview, Lo
     @EntityGraph(attributePaths = "user")
     List<ProductReview> findByCatalogProductIdOrderByUpdatedAtDescIdDesc(String productId);
 
-    Optional<ProductReview> findByCatalogProductIdAndUserId(String productId, Long userId);
+    List<ProductReview> findByCatalogProductIdAndUserId(String productId, Long userId);
+
+    Optional<ProductReview> findByCatalogProductIdAndOrderId(String productId, Long orderId);
 }

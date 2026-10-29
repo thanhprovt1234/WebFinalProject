@@ -43,7 +43,7 @@ public class CheckoutController {
         request.setExpectedTotal(cart.total().subtract(discount));
         model.addAttribute("discount",discount);
         model.addAttribute("payableTotal",cart.total().subtract(discount));
-        model.addAttribute("vouchers",vouchers.available(principal.getName()));
+        model.addAttribute("vouchers",vouchers.wallet(principal.getName(),true));
         model.addAttribute("canOrder",!cart.items().isEmpty() && cart.items().stream().allMatch(i->i.available() && i.quantity()<=i.stock()));
         return "checkout/index";
     }
@@ -57,7 +57,10 @@ public class CheckoutController {
         if(!java.util.Objects.equals(session.getAttribute("checkoutToken"),request.getToken()))
             errors.reject("token","Phiên đặt hàng đã thay đổi. Vui lòng mở lại trang thanh toán.");
         if(!errors.hasErrors()) {
-            try { return "redirect:/orders?placed="+checkout.place(principal.getName(),request); }
+            try {
+                checkout.place(principal.getName(),request);
+                return "redirect:/";
+            }
             catch(ResponseStatusException ex) { errors.reject("checkout",ex.getReason()==null?"Chưa thể đặt hàng.":ex.getReason()); }
         }
         return prepare(principal,request,model);
@@ -79,7 +82,7 @@ public class CheckoutController {
     public String orders(Principal principal,@RequestParam(required=false) Long placed,Model model) {
         if(placed!=null) model.addAttribute("placedOrder",checkout.get(principal.getName(),placed).id());
         model.addAttribute("account",profiles.account(principal.getName()));
-        model.addAttribute("vouchers",vouchers.available(principal.getName()));
+        model.addAttribute("vouchers",vouchers.wallet(principal.getName(),false));
         model.addAttribute("orders",checkout.list(principal.getName())); return "checkout/orders";
     }
 }

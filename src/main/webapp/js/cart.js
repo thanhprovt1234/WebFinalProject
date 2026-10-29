@@ -27,7 +27,7 @@
     document.querySelector(".nav-cart")?.setAttribute("aria-label", `Giỏ hàng, ${cart.count} sản phẩm`);
     login.hidden = authenticated;
     list.replaceChildren();
-    if (authenticated && !cart.items.length) list.textContent = "Giỏ hàng đang trống.";
+    if (!cart.items.length) list.textContent = "Giỏ hàng đang trống.";
     cart.items.forEach(item => {
       const row = document.createElement("div"); row.className = "cart-item";
       if (item.image) {
@@ -59,7 +59,7 @@
     });
     document.querySelector("#cart-total").textContent = money(cart.total);
     const checkout = document.querySelector("#cart-checkout");
-    if (checkout) checkout.hidden = busy || !authenticated || !cart.items.length || cart.items.some(item => !item.available || item.quantity > item.stock);
+    if (checkout) checkout.hidden = busy || !cart.items.length || cart.items.some(item => !item.available || item.quantity > item.stock);
     setBusy(busy);
   };
   const request = async (path = "", method = "GET", data = null) => {
@@ -90,19 +90,18 @@
     catch (error) {
       status(error instanceof TypeError || error.name === "TimeoutError"
         ? "Chưa xác nhận được thay đổi. Hãy tải lại giỏ hàng để kiểm tra." : error.message);
-      retry.hidden = !authenticated;
+      retry.hidden = false;
     } finally { setBusy(false); render(); }
   };
   const load = async () => {
-    if (busy || !authenticated) return;
+    if (busy) return;
     setBusy(true); status("Đang tải giỏ hàng…"); retry.hidden = true;
     try { cart = await request(); status(""); }
-    catch (error) { status("Không tải được giỏ hàng. " + error.message); retry.hidden = !authenticated; }
+    catch (error) { status("Không tải được giỏ hàng. " + error.message); retry.hidden = false; }
     finally { setBusy(false); render(); }
   };
   form?.addEventListener("submit", event => {
     event.preventDefault();
-    if (!authenticated) { window.location.assign(dialog.dataset.context + "/login"); return; }
     if (!form.reportValidity()) return;
     const values = new FormData(form);
     mutate("/items", "POST", { productId: root.dataset.productId, size: values.get("size"), color: form.querySelector('[name="size"]:checked').dataset.color, quantity: values.get("quantity") },

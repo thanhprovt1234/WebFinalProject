@@ -34,7 +34,7 @@ class SqlServerSchemaTests {
             var sources = new MetadataSources(registry);
             List.of(User.class, Role.class, Category.class, Product.class, ProductVariant.class,
                     Store.class, StoreManager.class, Inventory.class, OrderEntity.class, OrderItem.class, Shop.class,
-                    ShopOrder.class, OrderStatusHistory.class, Shipment.class, Address.class, ProductReview.class, CartItem.class, ProductActivity.class, Voucher.class)
+                    ShopOrder.class, OrderStatusHistory.class, Shipment.class, Address.class, ProductReview.class, CartItem.class, ProductActivity.class, Voucher.class, VoucherCampaign.class)
                     .forEach(sources::addAnnotatedClass);
             var metadata = sources.buildMetadata();
             SchemaManagementToolCoordinator.process(metadata, registry, settings, action -> {
@@ -47,7 +47,7 @@ class SqlServerSchemaTests {
         var ddl = script.toString().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
         for (var table : List.of("users", "roles", "user_roles", "categories", "products",
                 "product_variants", "stores", "store_managers", "inventories", "orders", "order_items", "shops",
-                "shop_orders", "order_status_history", "shipments", "addresses", "product_reviews", "cart_items", "product_activities", "vouchers")) {
+                "shop_orders", "order_status_history", "shipments", "addresses", "product_reviews", "cart_items", "product_activities", "vouchers", "voucher_campaigns")) {
             assertThat(ddl).contains("create table " + table + " (");
         }
         assertThat(ddl).contains("identity", "nvarchar(200)", "nvarchar(50)", "datetime2", "bit");
@@ -73,7 +73,7 @@ class SqlServerSchemaTests {
                 "foreign key (shop_order_id) references shop_orders",
                 "foreign key (shipper_id) references users");
         assertThat(ddl).doesNotContain("create table user (", "create table order (", "on delete cascade");
-        assertThat(ddl).contains("constraint uk_product_reviews_catalog_user unique (catalog_product_id, user_id)",
+        assertThat(ddl).contains("unique nonclustered index uk_product_reviews_catalog_order on product_reviews (catalog_product_id, order_id)",
                 "constraint ck_product_reviews_rating check (rating between 1 and 5)", "comment nvarchar(2000)");
         assertThat(ddl).contains("constraint uk_cart_items_user_product_option unique (user_id, catalog_product_id, size, color)",
                 "constraint ck_cart_items_quantity check (quantity between 1 and 99)");

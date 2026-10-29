@@ -23,6 +23,7 @@
   <link href="${pageContext.request.contextPath}/css/app.css" rel="stylesheet">
   <link href="${pageContext.request.contextPath}/css/fashion-theme.css" rel="stylesheet">
   <link href="${pageContext.request.contextPath}/css/product-activity.css" rel="stylesheet">
+  <c:if test="${bodyClass == 'home-page'}"><link href="${pageContext.request.contextPath}/css/home-collections.css" rel="stylesheet"></c:if>
   <c:if test="${bodyClass == 'admin-page'}"><link href="${pageContext.request.contextPath}/css/checkout.css" rel="stylesheet"><link href="${pageContext.request.contextPath}/css/admin.css" rel="stylesheet"></c:if>
   <c:if test="${bodyClass == 'profile-page'}"><link href="${pageContext.request.contextPath}/css/profile.css" rel="stylesheet"></c:if>
   <c:if test="${bodyClass == 'catalog-page' || bodyClass == 'product-page' || bodyClass == 'home-page'}">

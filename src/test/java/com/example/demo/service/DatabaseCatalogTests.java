@@ -24,6 +24,7 @@ class DatabaseCatalogTests {
     @Autowired StoreRepository stores;
     @Autowired ProductVariantRepository variants;
     @Autowired InventoryRepository inventory;
+    @Autowired OrderEntityRepository orders;
     record Fixture(User owner,Shop shop,Category category,Store store) {}
     private Fixture fixture() {
         String key=UUID.randomUUID().toString();
@@ -42,6 +43,35 @@ class DatabaseCatalogTests {
         v.setPrice(BigDecimal.valueOf(price));variants.save(v);
         var stock=new Inventory();stock.setStore(store);stock.setProductVariant(v);stock.setQuantity(quantity);inventory.saveAndFlush(stock);
         return v;
+    }
+    private void sale(Fixture f,ProductVariant variant,int quantity,OrderStatus status,String payment) {
+        var order=new OrderEntity(); order.setUser(f.owner()); order.setReceiverName("Buyer");
+        order.setReceiverPhone("0901234567"); order.setShippingAddress("Test address");
+        var total=variant.getPrice().multiply(BigDecimal.valueOf(quantity));
+        order.setTotalAmount(total); order.setPaymentStatus(payment);
+        var shopOrder=new ShopOrder(); shopOrder.setOrder(order); shopOrder.setShop(f.shop());
+        shopOrder.setStatus(status); shopOrder.setSubtotal(total); shopOrder.setTotalAmount(total);
+        var item=new OrderItem(); item.setShopOrder(shopOrder); item.setProductVariant(variant);
+        item.setProductName(variant.getProduct().getName()); item.setVariantSku(variant.getSku());
+        item.setSize(variant.getSize()); item.setColor(variant.getColor()); item.setQuantity(quantity);
+        item.setUnitPrice(variant.getPrice()); item.setSubtotal(total);
+        orders.saveAndFlush(order);
+    }
+    @Test void bestsellersAggregateVariantsAndExcludeUnpaidCancelledAndHiddenProducts() {
+        var f=fixture(); var first=product(f,"Bestseller",100); var second=product(f,"Runner up",100);
+        var red=variant(first,"Red",100,10,f.store()); var blue=variant(first,"Blue",100,10,f.store());
+        var other=variant(second,"White",100,10,f.store());
+        sale(f,red,3,OrderStatus.DELIVERED,"PAID"); sale(f,blue,2,OrderStatus.DELIVERED,"PAID");
+        sale(f,other,4,OrderStatus.DELIVERED,"PAID");
+        sale(f,other,100,OrderStatus.CANCELLED,"PAID"); sale(f,other,100,OrderStatus.DELIVERED,"UNPAID");
+        sale(f,other,100,OrderStatus.NEW,"PAID");
+        assertThat(catalog.bestsellers()).extracting(p->p.get("id")).containsExactly(first.getSlug(),second.getSlug());
+        assertThat(catalog.bestsellers().getFirst().get("soldQuantity")).isEqualTo(5L);
+        first.setEnabled(false); products.flush();
+        assertThat(catalog.bestsellers()).extracting(p->p.get("id")).containsExactly(second.getSlug());
+        f.category().setEnabled(false); categories.flush(); assertThat(catalog.bestsellers()).isEmpty();
+        f.category().setEnabled(true); f.shop().setStatus(ShopStatus.SUSPENDED); shops.flush();
+        assertThat(catalog.bestsellers()).isEmpty();
     }
     @Test void databaseFilteringSortingAndTwentyItemPages() {
         var f=fixture();

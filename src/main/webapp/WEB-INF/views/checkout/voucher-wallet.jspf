@@ -1,0 +1,8 @@
+<%@ page pageEncoding="UTF-8" %>
+<c:forEach var="voucher" items="${vouchers}">
+  <article class="voucher-wallet-card">
+    <strong><c:out value="${voucher.name}" /> — <c:out value="${voucher.benefit}" /></strong>
+    <p>Mã: <strong><c:out value="${voucher.code}" /></strong> · <c:out value="${voucher.status}" /></p>
+    <p>Đơn từ <fmt:formatNumber value="${voucher.minimum}" />đ<c:if test="${not empty voucher.maximum}"> · Giảm tối đa <fmt:formatNumber value="${voucher.maximum}" />đ</c:if> · Hạn dùng: <c:out value="${voucher.expires}" /></p>
+  </article>
+</c:forEach>

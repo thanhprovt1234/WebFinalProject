@@ -6,7 +6,7 @@ import org.hibernate.annotations.Nationalized;
 
 @Entity
 @Table(name = "product_reviews", uniqueConstraints = @UniqueConstraint(
-        name = "uk_product_reviews_catalog_user", columnNames = {"catalog_product_id", "user_id"}),
+        name = "uk_product_reviews_catalog_order", columnNames = {"catalog_product_id", "order_id"}),
         check = @CheckConstraint(name = "ck_product_reviews_rating", constraint = "rating between 1 and 5"))
 public class ProductReview extends AuditableEntity {
     // The display catalog uses stable string IDs, independently of database products.
@@ -18,6 +18,14 @@ public class ProductReview extends AuditableEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    // Nullable only for historical reviews without a matching purchase.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    private OrderEntity order;
+
+    public OrderEntity getOrder() { return order; }
+    public void setOrder(OrderEntity value) { order = value; }
 
     @Min(1) @Max(5)
     @Column(nullable = false)

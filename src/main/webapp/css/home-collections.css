@@ -1,0 +1,40 @@
+.home-picks.catalog-shell { padding-top: 64px; padding-bottom: 60px; }
+.picks-heading { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 30px; }
+.picks-eyebrow { font-size: 10px; letter-spacing: 2px; font-weight: 600; color: #747952; margin: 0 0 12px; }
+.picks-heading h2 { font-size: clamp(22px, 2.5vw, 34px); font-weight: 600; letter-spacing: -.8px; margin: 0 0 12px; }
+.picks-heading p:last-child { color: #757575; font-size: 13px; margin-bottom: 0; }
+.picks-all { color: #252525; text-decoration: none; border-bottom: 1px solid #aaa; padding-bottom: 7px; font-size: 12px; white-space: nowrap; }
+.picks-all span { margin-left: 22px; }
+.picks-tabs { display: flex; gap: 28px; border-bottom: 1px solid #deded7; }
+.picks-tabs[hidden], .home-picks [hidden] { display: none; }
+.picks-tabs button { font: inherit; font-size: 14px; border: 0; border-bottom: 2px solid transparent; padding: 14px 0; background: transparent; color: #777; }
+.picks-tabs button[aria-selected="true"] { border-bottom-color: #272c20; color: #272c20; font-weight: 600; }
+.picks-tabs button span { margin-left: 12px; }
+.home-picks :focus-visible { outline: 2px solid #747952; outline-offset: 5px; }
+.picks-note { font-size: 12px; color: #777; margin: 20px 0; }
+.picks-products { display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 72px) / 4); gap: 24px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 16px; scrollbar-color: #aaa99a #f1f0ea; scrollbar-width: thin; }
+.pick-card { scroll-snap-align: start; }
+.pick-rank { position: absolute; top: 12px; left: 12px; background: #30372c; color: #fff; padding: 7px 11px; font-size: 10px; letter-spacing: 1px; }
+.pick-meta { display: flex; justify-content: space-between; gap: 8px; margin: 15px 0 0; color: #777; font-size: 10px; }
+.pick-meta span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-meta span:last-child { flex-shrink: 0; }
+.home-page .pick-card h3 { margin: 8px 0; min-height: 45px; }
+.pick-buy { display: flex; justify-content: space-between; align-items: center; gap: 24px; border: 1px solid #d7d8cf; padding: 11px 14px; color: #30372c; text-decoration: none; font-size: 12px; transition: background .2s, color .2s; }
+.pick-buy:hover { background: #30372c; color: #fff; }
+.picks-empty { background: #f5f4ef; text-align: center; padding: 40px 20px; margin-top: 24px; }
+.picks-empty-mark { display: block; color: #858b55; font-size: 38px; margin-bottom: 12px; }
+.picks-empty h3 { font-size: 20px; margin-bottom: 12px; }
+.picks-empty p:not(.picks-eyebrow) { color: #777; font-size: 13px; line-height: 1.8; }
+.picks-empty .pick-buy { max-width: 270px; margin: 22px auto 0; }
+.picks-swipe { text-align: right; color: #777; font-size: 10px; margin: 8px 0 0; }
+@media (max-width: 767px) {
+  .home-picks.catalog-shell { padding-top: 36px; padding-bottom: 36px; }
+  .picks-heading { align-items: start; flex-direction: column; gap: 18px; margin-bottom: 20px; }
+  .picks-heading h2 { font-size: 22px; letter-spacing: -.5px; }
+  .picks-tabs { gap: 24px; }
+  .picks-products { grid-auto-columns: calc((100% - 14px) / 2); gap: 14px; }
+  .pick-meta { flex-direction: column; gap: 4px; }
+  .pick-rank { left: 8px; top: 8px; padding: 5px 8px; }
+  .picks-empty h3 { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) { .pick-buy { transition: none; } }

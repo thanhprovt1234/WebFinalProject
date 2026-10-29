@@ -112,9 +112,10 @@ class CartControllerTests {
     }
 
     @Test
-    void rejectsInvalidInputAnonymousWritesAndMissingCsrf() throws Exception {
+    void rejectsInvalidInputAndMissingCsrf() throws Exception {
         var anonymous = client();
-        assertThat(send(anonymous, "GET", "/api/cart", null, null).statusCode()).isEqualTo(401);
+        assertThat(send(anonymous, "GET", "/api/cart", null, null).statusCode()).isEqualTo(200);
+        assertThat(send(anonymous,"POST","/api/cart/items","productId=ao-thun-01&size=M&quantity=1",null).statusCode()).isEqualTo(403);
         var session = login(account());
         assertThat(send(session.client(), "POST", "/api/cart/items", "productId=ao-thun-01&size=M&quantity=1", null)
                 .statusCode()).isEqualTo(403);
@@ -130,6 +131,59 @@ class CartControllerTests {
         assertThat(cart(session, "POST", "/items", "productId=ao-thun-01&size=M&quantity=1").statusCode()).isEqualTo(400);
         assertThat(cart(session, "PATCH", "/items/" + id, "quantity=-1").statusCode()).isEqualTo(400);
         assertThat(items.findById(id).orElseThrow().getQuantity()).isEqualTo(99);
+    }
+
+    @Test void guestsCanAddUpdateRemoveAndKeepCartAcrossPagesWithoutSharingSessions() throws Exception {
+        var guest=client(); var token=csrf(send(guest,"GET","/",null,null).body());
+        var added=send(guest,"POST","/api/cart/items","productId=ao-thun-01&size=M&quantity=2&price=1&userId=0",token);
+        assertThat(added.statusCode()).isEqualTo(200);
+        var body=json.readTree(added.body()); var id=body.path("items").get(0).path("id").asLong();
+        assertThat(body.path("total").asLong()).isEqualTo(198000);
+        assertThat(send(guest,"GET","/collections",null,null).statusCode()).isEqualTo(200);
+        assertThat(send(guest,"GET","/api/cart",null,null).body()).isEqualTo(added.body());
+        var other=client(); var otherToken=csrf(send(other,"GET","/",null,null).body());
+        assertThat(send(other,"GET","/api/cart",null,null).body()).contains("\"count\":0");
+        assertThat(send(other,"PATCH","/api/cart/items/"+id,"quantity=8",otherToken).statusCode()).isEqualTo(404);
+        assertThat(send(other,"DELETE","/api/cart/items/"+id,null,otherToken).statusCode()).isEqualTo(404);
+        assertThat(send(guest,"PATCH","/api/cart/items/"+id,"quantity=3",token).body()).contains("\"count\":3");
+        assertThat(send(guest,"PATCH","/api/cart/items/"+id,"quantity=100",token).statusCode()).isEqualTo(400);
+        assertThat(send(guest,"DELETE","/api/cart/items/"+id,null,token).body()).contains("\"count\":0");
+    }
+
+    @Test void checkoutRequiresLoginThenMergesGuestCartExactlyOnceAndReturnsToCheckout() throws Exception {
+        var owner=account(); var existing=login(owner);
+        assertThat(cart(existing,"POST","/items","productId=ao-thun-01&size=M&quantity=3").statusCode()).isEqualTo(200);
+        var guest=client(); var token=csrf(send(guest,"GET","/",null,null).body());
+        assertThat(send(guest,"POST","/api/cart/items","productId=ao-thun-01&size=M&quantity=2",token).statusCode()).isEqualTo(200);
+        assertThat(send(guest,"POST","/api/cart/items","productId=ao-thun-02&size=L&quantity=1",token).statusCode()).isEqualTo(200);
+        var checkout=send(guest,"GET","/checkout",null,null);
+        assertThat(checkout.statusCode()).isEqualTo(302);
+        assertThat(URI.create(checkout.headers().firstValue("Location").orElseThrow()).getPath()).isEqualTo("/login");
+        token=csrf(send(guest,"GET","/login",null,null).body());
+        assertThat(send(guest,"POST","/login","username="+owner.getUsername()+"&password=wrong",token).statusCode()).isEqualTo(302);
+        assertThat(send(guest,"GET","/api/cart",null,null).body()).contains("\"count\":3");
+        token=csrf(send(guest,"GET","/login",null,null).body());
+        var loggedIn=send(guest,"POST","/login","username="+owner.getUsername()+"&password=cart-password",token);
+        assertThat(loggedIn.statusCode()).isEqualTo(302);
+        assertThat(URI.create(loggedIn.headers().firstValue("Location").orElseThrow()).getPath()).isEqualTo("/checkout");
+        var page=send(guest,"GET","/checkout",null,null);
+        assertThat(page.statusCode()).isEqualTo(200);
+        var merged=json.readTree(send(guest,"GET","/api/cart",null,null).body());
+        assertThat(merged.path("count").asInt()).isEqualTo(6);
+        assertThat(merged.path("items").size()).isEqualTo(2);
+        assertThat(cart(existing,"GET","",null).body()).contains("\"count\":6");
+        assertThat(cart(login(owner),"GET","",null).body()).contains("\"count\":6");
+        assertThat(items.findByUserIdOrderByIdAsc(owner.getId())).hasSize(2);
+    }
+
+    @Test void directLoginAlsoPreservesGuestCart() throws Exception {
+        var owner=account(); var guest=client(); var token=csrf(send(guest,"GET","/",null,null).body());
+        send(guest,"POST","/api/cart/items","productId=ao-thun-01&size=M&quantity=2",token);
+        token=csrf(send(guest,"GET","/login",null,null).body());
+        var login=send(guest,"POST","/login","username="+owner.getUsername()+"&password=cart-password",token);
+        assertThat(login.statusCode()).isEqualTo(302);
+        assertThat(URI.create(login.headers().firstValue("Location").orElseThrow()).getPath()).isEqualTo("/");
+        assertThat(send(guest,"GET","/api/cart",null,null).body()).contains("\"count\":2");
     }
 
     @Test

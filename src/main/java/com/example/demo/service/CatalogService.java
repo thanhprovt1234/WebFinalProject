@@ -20,9 +20,23 @@ public class CatalogService {
     private final InventoryRepository inventory;
     private final CategoryRepository categories;
     private final ShopRepository shops;
+    private final OrderItemRepository orderItems;
     public CatalogService(ProductRepository products, ProductVariantRepository variants, InventoryRepository inventory,
-            CategoryRepository categories, ShopRepository shops) {
+            CategoryRepository categories, ShopRepository shops, OrderItemRepository orderItems) {
         this.products=products; this.variants=variants; this.inventory=inventory; this.categories=categories; this.shops=shops;
+        this.orderItems=orderItems;
+    }
+
+    public List<Map<String,Object>> bestsellers() {
+        var ranking=orderItems.findBestsellers(PageRequest.of(0,8));
+        var byId=new HashMap<Long,Product>();
+        products.findAllById(ranking.stream().map(OrderItemRepository.Bestseller::getProductId).toList())
+                .forEach(p->byId.put(p.getId(),p));
+        return ranking.stream().filter(row->byId.containsKey(row.getProductId())).map(row->{
+            var product=display(byId.get(row.getProductId()));
+            product.put("soldQuantity",row.getSoldQuantity());
+            return product;
+        }).toList();
     }
 
     public Page<Map<String,Object>> search(String sort, String query, Long category, String shop, int page) {

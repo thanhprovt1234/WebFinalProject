@@ -41,7 +41,7 @@ public class CheckoutService {
         var previous=orders.findByUserIdAndCheckoutToken(user.getId(),request.getToken());
         if(previous.isPresent()) return previous.get().getId();
         var voucher=request.getVoucherCode()==null || request.getVoucherCode().isBlank()?null:
-                vouchers.validate(username,request.getVoucherCode());
+                vouchers.lockForUse(username,request.getVoucherCode());
         var cart=carts.findByUserIdOrderByIdAsc(user.getId());
         if(cart.isEmpty()) throw rejected("Giỏ hàng đang trống.");
         var selected=new ArrayList<Selected>();
@@ -92,12 +92,13 @@ public class CheckoutService {
         BigDecimal discount=BigDecimal.ZERO;
         if(voucher!=null) {
             // Cumulative rounding keeps shop discounts nonnegative and their sum exact.
-            discount=vouchers.discount(total);
+            discount=vouchers.discount(voucher,total);
             var runningSubtotal=BigDecimal.ZERO;
             var assigned=BigDecimal.ZERO;
             for(var part:byShop.values()) {
                 runningSubtotal=runningSubtotal.add(part.getSubtotal());
-                var amount=vouchers.discount(runningSubtotal).subtract(assigned);
+                var amount=total.signum()==0?BigDecimal.ZERO:
+                        discount.multiply(runningSubtotal).divide(total,2,java.math.RoundingMode.HALF_UP).subtract(assigned);
                 part.setDiscountAmount(amount);
                 part.setTotalAmount(part.getSubtotal().subtract(amount)); assigned=assigned.add(amount);
             }
@@ -116,7 +117,11 @@ public class CheckoutService {
         return order.getId();
     }
 
-    public record Line(String name,String size,String color,int quantity,BigDecimal price,BigDecimal subtotal) {}
+    public record Line(String name,String size,String color,int quantity,BigDecimal price,BigDecimal subtotal,String productId) {
+        public Line(String name,String size,String color,int quantity,BigDecimal price,BigDecimal subtotal) {
+            this(name,size,color,quantity,price,subtotal,null);
+        }
+    }
     public record ShopView(String name,String status,BigDecimal total,List<Line> items) {
         public String statusLabel() { return CheckoutService.statusLabel(status); }
     }
@@ -162,7 +167,8 @@ public class CheckoutService {
         return new Receipt(order.getId(),order.getReceiverName(),order.getReceiverPhone(),order.getShippingAddress(),
                 order.getTotalAmount(),order.getPaymentMethod(),order.getPaymentStatus(),order.getShopOrders().stream()
                 .map(s->new ShopView(s.getShop().getName(),s.getStatus().name(),s.getTotalAmount(),s.getItems().stream()
-                .map(i->new Line(i.getProductName(),i.getSize(),i.getColor(),i.getQuantity(),i.getUnitPrice(),i.getSubtotal())).toList())).toList(),
+                .map(i->new Line(i.getProductName(),i.getSize(),i.getColor(),i.getQuantity(),i.getUnitPrice(),i.getSubtotal(),
+                        i.getProductVariant().getProduct().getSlug())).toList())).toList(),
                 order.getOrderDate().atOffset(java.time.ZoneOffset.UTC).atZoneSameInstant(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))
                         .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")),order.getVoucherCode(),order.getDiscountAmount());
     }

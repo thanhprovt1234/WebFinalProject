@@ -80,10 +80,16 @@
         <c:if test="${not empty reviewSuccess}"><p class="review-success" role="status"><c:out value="${reviewSuccess}" /></p></c:if>
         <c:if test="${not empty reviewError}"><p class="review-error" role="alert"><c:out value="${reviewError}" /></p></c:if>
         <c:choose>
-          <c:when test="${not empty pageContext.request.userPrincipal}">
-            <form class="review-form" method="post" action="${pageContext.request.contextPath}/products/${product.id}/reviews#reviews-title">
+          <c:when test="${reviews.canReview}">
+            <form class="review-form" id="review-form" tabindex="-1" method="post" action="${pageContext.request.contextPath}/products/${product.id}/reviews#reviews-title">
               <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
-              <h4>Đánh giá của bạn</h4>
+              <h4>Đánh giá của bạn — đơn hàng #${reviews.form.orderId}</h4>
+              <input type="hidden" name="orderId" value="${reviewForm.orderId}">
+              <p>Chọn lần mua để đánh giá:</p>
+              <c:forEach var="purchase" items="${reviews.purchases}">
+                <c:url var="purchaseReviewUrl" value="/products/${product.id}"><c:param name="orderId" value="${purchase.id}" /></c:url>
+                <a href="<c:out value='${purchaseReviewUrl}' />#review-form">Đơn #${purchase.id} (${purchase.reviewed ? 'Đã đánh giá' : 'Chưa đánh giá'})</a>
+              </c:forEach>
               <fieldset class="review-rating"><legend>Chọn số sao</legend><div class="review-star-options">
                 <c:forEach begin="1" end="5" var="star">
                   <label><input type="radio" name="rating" value="${star}" required ${reviewForm.rating == star ? 'checked' : ''}><span>★ <small>${star}</small></span><span class="visually-hidden">${star} sao</span></label>
@@ -91,9 +97,12 @@
               </div></fieldset>
               <label for="review-comment">Nhận xét của bạn</label>
               <textarea id="review-comment" name="comment" rows="4" maxlength="2000" required aria-describedby="review-hint" placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."><c:out value="${reviewForm.comment}" /></textarea>
-              <p id="review-hint">Tối đa 2.000 ký tự. Mỗi tài khoản có một đánh giá cho sản phẩm; bạn có thể cập nhật bất cứ lúc nào.</p>
+              <p id="review-hint">Tối đa 2.000 ký tự. Mỗi sản phẩm trong mỗi đơn hàng có một đánh giá riêng. Mua lại ở đơn khác, bạn được đánh giá thêm lần nữa.</p>
               <button type="submit" class="detail-primary">${empty reviews.form.rating ? 'Gửi đánh giá' : 'Cập nhật đánh giá'}</button>
             </form>
+          </c:when>
+          <c:when test="${not empty pageContext.request.userPrincipal}">
+            <p class="review-login">Bạn chỉ có thể đánh giá sản phẩm đã mua khi đơn hàng đã giao thành công.</p>
           </c:when>
           <c:otherwise><p class="review-login"><a href="${pageContext.request.contextPath}/login">Đăng nhập</a> để viết nhận xét và đánh giá sản phẩm.</p></c:otherwise>
         </c:choose>

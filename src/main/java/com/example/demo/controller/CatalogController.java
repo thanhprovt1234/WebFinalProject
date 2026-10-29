@@ -32,7 +32,7 @@ public class CatalogController {
     }
 
     @GetMapping("/products/{id}")
-    public String detail(@PathVariable String id, Model model, Principal principal) {
+    public String detail(@PathVariable String id, @RequestParam(required = false) Long orderId, Model model, Principal principal) {
         var product = catalogService.findProduct(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sản phẩm"));
         model.addAttribute("product", product);
@@ -40,7 +40,7 @@ public class CatalogController {
         model.addAttribute("variants", catalogService.options(id));
         model.addAttribute("relatedProducts", catalogService.relatedTo(id));
         model.addAttribute("favorite", principal != null && activities.isFavorite(principal.getName(), id));
-        var reviews = reviewService.summary(id, principal == null ? null : principal.getName());
+        var reviews = reviewService.summary(id, principal == null ? null : principal.getName(), orderId);
         model.addAttribute("reviews", reviews);
         if (!model.containsAttribute("reviewForm")) {
             model.addAttribute("reviewForm", reviews.get("form"));
@@ -56,16 +56,16 @@ public class CatalogController {
         }
         if (errors.hasErrors()) {
             model.addAttribute("reviewError", "Vui lòng chọn từ 1–5 sao và nhập nhận xét từ 1–2.000 ký tự.");
-            return detail(id, model, principal);
+            return detail(id, form.getOrderId(), model, principal);
         }
         try {
             reviewService.save(id, principal.getName(), form);
         } catch (DataIntegrityViolationException ex) {
             model.addAttribute("reviewError", "Đánh giá vừa được gửi ở cửa sổ khác. Vui lòng tải lại trang và thử lại.");
-            return detail(id, model, principal);
+            return detail(id, form.getOrderId(), model, principal);
         }
         redirect.addFlashAttribute("reviewSuccess", "Đánh giá của bạn đã được lưu. Cảm ơn bạn!");
-        return "redirect:/products/" + id + "#reviews-title";
+        return "redirect:/products/" + id + "?orderId=" + form.getOrderId() + "#reviews-title";
     }
 
     @GetMapping("/collections/ao-thun-co-tron")

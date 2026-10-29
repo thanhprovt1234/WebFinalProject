@@ -1,7 +1,12 @@
 # Account carts
 
 The shared cart now persists in SQL Server `cart_items`, scoped to the authenticated
-account. Guests are prompted to sign in. Cart contents survive logout and are shared
+account. Guests can add, update and remove products in a server-side session cart,
+with the same server prices, stock validation and CSRF protection. Guest carts survive
+page navigation and reloads while the browser session remains valid. Checkout requires
+sign-in; successful login merges the guest cart into the account cart before returning
+to checkout. Direct sign-in also merges the cart and returns to the home page. Failed
+login leaves the guest cart intact. Account cart contents survive logout and are shared
 between devices. Adding the same catalog product and size increments its quantity;
 each line permits 1–99 units. The dialog supports quantity changes and removal.
 
@@ -27,8 +32,14 @@ configuration remains unchanged.
 
 ## API
 
-All responses are JSON; mutations return the full current cart. Authentication and
-CSRF protection apply. Form-encoded requests are used for POST/PATCH.
+All responses are JSON; mutations return the full current cart. Anonymous requests use
+only the current session's guest cart; authenticated requests use the account cart.
+CSRF protection applies to all mutations. Form-encoded requests are used for POST/PATCH.
+Merging increments matching size/color lines, capped at the existing 99-unit limit with
+a notice in the cart if that limit is reached. Unavailable or insufficient-stock lines
+remain in the merged cart so the customer can review them before checkout. The guest
+cart is cleared only after the account transaction commits, preventing duplicate merges.
+No database migration is needed. Guest carts allow up to 100 distinct selections.
 
 | Method | Path | Fields |
 | --- | --- | --- |
@@ -44,6 +55,6 @@ Database uniqueness and CHECK constraints provide additional safeguards.
 `CartControllerTests` covers ownership, cross-session persistence, authoritative prices,
 merging, separate sizes, updates/removal, limits, CSRF, anonymous access and concurrent adds.
 
-Verified in Chrome against local SQL Server: guest sign-in prompt, add/update/remove,
+Previously verified in Chrome against local SQL Server: guest sign-in prompt, add/update/remove,
 totals, page reload, recovery after a fresh login session, four concurrent additions,
 and dialog layouts at 1440px and 390px. The temporary test account was removed.

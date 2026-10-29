@@ -10,7 +10,7 @@ Giảm giá được tính trên tiền hàng, làm tròn đến hai chữ số 
 
 Từ giỏ hàng, chọn **Đặt hàng COD**, kiểm tra địa chỉ nhận hàng và tổng tiền rồi xác nhận. Địa chỉ mặc định trong tài khoản được điền sẵn và có thể sửa trước khi đặt. Trong phiên bản này, phí giao hàng là 0đ và được hiển thị trước khi xác nhận.
 
-Sau khi xác nhận thành công, ứng dụng chuyển sang `/orders?placed={id}`: danh sách đơn của tài khoản và tự mở hộp chi tiết đơn vừa đặt. Mỗi đơn có nút **Xem chi tiết**, hiển thị mã `H2T-…`, ngày giờ đặt theo múi giờ Việt Nam, trạng thái, phương thức/trạng thái thanh toán, người nhận, số điện thoại, địa chỉ, sản phẩm và tổng tiền. Trạng thái `NEW` được hiển thị là **Chờ xác nhận**. Đơn nhiều shop có trạng thái khác nhau hiển thị trạng thái của từng shop. Khi JavaScript không khả dụng, nút chi tiết mở trang `/orders/{id}` với cùng thông tin.
+Sau khi xác nhận thành công, ứng dụng chuyển về trang chủ `/` để người dùng tiếp tục mua sắm. Người dùng có thể xem đơn vừa đặt tại **Đơn hàng của tôi** (`/orders`). Mỗi đơn có nút **Xem chi tiết**, hiển thị mã `H2T-…`, ngày giờ đặt theo múi giờ Việt Nam, trạng thái, phương thức/trạng thái thanh toán, người nhận, số điện thoại, địa chỉ, sản phẩm và tổng tiền. Trạng thái `NEW` được hiển thị là **Chờ xác nhận**. Đơn nhiều shop có trạng thái khác nhau hiển thị trạng thái của từng shop. Khi JavaScript không khả dụng, nút chi tiết mở trang `/orders/{id}` với cùng thông tin.
 
 - `/checkout`: yêu cầu đăng nhập; nhận họ tên, số điện thoại và địa chỉ đầy đủ.
 - `/orders`: các đơn của tài khoản đang đăng nhập.

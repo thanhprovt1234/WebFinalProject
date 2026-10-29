@@ -38,6 +38,30 @@ public class EmailService {
         mailSender.send(message);
     }
 
+    public void sendVoucherGifted(VoucherGifted event) {
+        var number = java.text.NumberFormat.getNumberInstance(java.util.Locale.forLanguageTag("vi-VN"));
+        var body = new StringBuilder("Xin chào ").append(event.customerName()).append(",\n\n")
+                .append("Bạn vừa nhận được một voucher quà tặng từ H2T!\n")
+                .append("Chương trình: ").append(event.campaignName()).append('\n')
+                .append("Mã voucher: ").append(event.code()).append('\n')
+                .append("Ưu đãi: Giảm ").append(number.format(event.discountValue()))
+                .append("PERCENT".equals(event.discountType()) ? "%" : " VNĐ").append('\n')
+                .append("Áp dụng cho đơn hàng từ: ").append(number.format(event.minimumTotal())).append(" VNĐ\n");
+        if (event.maximumDiscount() != null) {
+            body.append("Giảm tối đa: ").append(number.format(event.maximumDiscount())).append(" VNĐ\n");
+        }
+        body.append("Hạn sử dụng: ").append(event.expiryLabel()).append(" (giờ Việt Nam)\n\n")
+                .append("Đăng nhập tài khoản được tặng để xem mã tại Đơn hàng của tôi → Voucher của tôi.\n")
+                .append("Nhập mã và chọn Áp dụng mã khi thanh toán. Mỗi mã dùng một lần, chỉ dành cho tài khoản được tặng.\n\n")
+                .append("Chúc bạn mua sắm vui vẻ!\nH2T Menswear");
+        var message = new SimpleMailMessage();
+        message.setFrom(senderEmail);
+        message.setTo(event.email());
+        message.setSubject("H2T - Bạn vừa nhận được voucher quà tặng!");
+        message.setText(body.toString());
+        mailSender.send(message);
+    }
+
     public void sendPurchaseCompleted(PurchaseCompleted event) {
         var order = event.order();
         var currency = java.text.NumberFormat.getIntegerInstance(java.util.Locale.forLanguageTag("vi-VN"));

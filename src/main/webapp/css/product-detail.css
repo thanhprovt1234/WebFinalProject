@@ -97,3 +97,5 @@
 .review-entry .review-content { color: #333; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
 @media (max-width: 991px) { .detail-shell { padding-inline: 24px; } .detail-layout { gap: 24px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .detail-gallery { grid-template-columns: 1fr; } .gallery-thumbs { flex-direction: row; order: 2; } .gallery-thumb { width: 55px; } .detail-info h1 { font-size: 20px; } .review-layout { grid-template-columns: 1fr 1fr; gap: 24px; } }
 @media (max-width: 767px) { .detail-shell { padding: 20px 16px 40px; } .detail-layout { grid-template-columns: 1fr; margin-top: 22px; } .gallery-stage { aspect-ratio: 1; } .detail-info h1 { font-size: 22px; } .detail-reviews { padding: 24px 16px; } .review-layout { grid-template-columns: 1fr; } .detail-related .product-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+
+#review-form { scroll-margin-top: 120px; }

@@ -3,6 +3,13 @@ package com.example.demo.dto;
 import jakarta.validation.constraints.*;
 
 public class ReviewRequest {
+    @NotNull(message = "Vui lòng chọn đơn hàng cần đánh giá.")
+    @Positive
+    private Long orderId;
+
+    public Long getOrderId() { return orderId; }
+    public void setOrderId(Long orderId) { this.orderId = orderId; }
+
     @NotNull(message = "Vui lòng chọn số sao.")
     @Min(value = 1, message = "Số sao phải từ 1 đến 5.")
     @Max(value = 5, message = "Số sao phải từ 1 đến 5.")

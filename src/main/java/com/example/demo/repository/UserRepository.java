@@ -10,6 +10,8 @@ import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 
 public interface UserRepository extends JpaRepository<User, Long> {
+    @Query("select distinct u from User u join u.roles r where u.enabled=true and r.name=com.example.demo.entity.RoleName.ROLE_USER and (lower(u.username) like lower(concat('%',:q,'%')) or lower(u.email) like lower(concat('%',:q,'%')) or lower(u.fullName) like lower(concat('%',:q,'%'))) order by u.id")
+    java.util.List<User> findVoucherRecipients(String q);
 
     Optional<User> findByUsername(String username);
 

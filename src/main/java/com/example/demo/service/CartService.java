@@ -70,6 +70,29 @@ public class CartService {
         return view(user.getId());
     }
 
+    @Transactional
+    public boolean mergeGuest(String username, List<Line> guestItems) {
+        var user=user(username,true);
+        boolean limited=false;
+        for(var line:guestItems) {
+            var item=items.findByUserIdAndCatalogProductIdAndSizeAndColor(user.getId(),line.productId(),line.size(),line.color())
+                    .orElseGet(CartItem::new);
+            int quantity=item.getQuantity()+line.quantity();
+            limited |= quantity>99;
+            item.setUser(user); item.setCatalogProductId(line.productId()); item.setSize(line.size()); item.setColor(line.color());
+            item.setQuantity(Math.min(99,quantity));
+            items.save(item);
+        }
+        items.flush();
+        return limited;
+    }
+
+    @Transactional(readOnly = true)
+    public Line guestLine(Long id,String productId,String size,String color,int quantity,boolean validate) {
+        if(validate) checkStock(catalog.option(productId,size,color),quantity);
+        return line(id,productId,size,color,quantity);
+    }
+
     private User user(String username, boolean lock) {
         // Serialize writes per account, including the first insert, across requests/devices.
         return (lock ? users.findForCartUpdate(username) : users.findByUsername(username))
@@ -87,22 +110,25 @@ public class CartService {
     }
 
     private CartView view(Long userId) {
-        var lines = items.findByUserIdOrderByIdAsc(userId).stream().map(item -> {
-            var product = catalog.findProduct(item.getCatalogProductId());
+        var lines = items.findByUserIdOrderByIdAsc(userId).stream()
+                .map(item->line(item.getId(),item.getCatalogProductId(),item.getSize(),item.getColor(),item.getQuantity())).toList();
+        return new CartView(lines, lines.stream().mapToInt(Line::quantity).sum(),
+                lines.stream().map(Line::subtotal).reduce(BigDecimal.ZERO, BigDecimal::add));
+    }
+
+    private Line line(Long id,String productId,String size,String color,int quantity) {
+            var product = catalog.findProduct(productId);
             Map<String,Object> option = Map.of();
             if (product.isPresent()) {
-                option = catalog.options(item.getCatalogProductId()).stream()
-                        .filter(v -> v.get("size").equals(item.getSize()) && v.get("color").equals(item.getColor()))
+                option = catalog.options(productId).stream()
+                        .filter(v -> v.get("size").equals(size) && v.get("color").equals(color))
                         .findFirst().orElse(Map.of());
             }
             BigDecimal price = (BigDecimal) option.getOrDefault("price", BigDecimal.ZERO);
             long stock = (Long) option.getOrDefault("stock", 0L);
-            return new Line(item.getId(), item.getCatalogProductId(),
+            return new Line(id, productId,
                     product.map(p -> (String) p.get("name")).orElse("Sản phẩm không còn kinh doanh"),
-                    product.map(p -> (String) p.get("imageUrl")).orElse(""), item.getSize(), item.getColor(), item.getQuantity(),
-                    price, price.multiply(BigDecimal.valueOf(item.getQuantity())), !option.isEmpty(), stock);
-        }).toList();
-        return new CartView(lines, lines.stream().mapToInt(Line::quantity).sum(),
-                lines.stream().map(Line::subtotal).reduce(BigDecimal.ZERO, BigDecimal::add));
+                    product.map(p -> (String) p.get("imageUrl")).orElse(""), size, color, quantity,
+                    price, price.multiply(BigDecimal.valueOf(quantity)), !option.isEmpty(), stock);
     }
 }

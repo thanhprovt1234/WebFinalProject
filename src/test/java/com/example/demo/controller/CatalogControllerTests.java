@@ -22,6 +22,18 @@ class CatalogControllerTests {
     @Autowired
     private CatalogService catalogService;
 
+    @Test void homeRendersCollectionsAndHonestEmptyStates() throws Exception {
+        try (var client=HttpClient.newHttpClient()) {
+            var page=client.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertThat(page.statusCode()).isEqualTo(200);
+            assertThat(page.body()).contains("ĐƯỢC YÊU THÍCH NHẤT", "Bán chạy", "Deal hôm nay",
+                    "id=\"bestsellers-panel\"", "id=\"deals-panel\"", "Hiện chưa có chương trình Flash Sale.",
+                    "/js/home-collections.js", "/css/home-collections.css");
+            assertThat(page.body().indexOf("data-home-picks")).isLessThan(page.body().indexOf("id=\"home-products-title\""));
+        }
+    }
+
     @Test
     void anonymousVisitorsCanOpenCatalogAndAllLocalImages() throws Exception {
         try (var client = HttpClient.newHttpClient()) {
