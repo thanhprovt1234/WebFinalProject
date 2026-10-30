@@ -71,7 +71,7 @@ class AdminManagementTests {
     }
     @AfterEach void cleanup() {
         clients.forEach(HttpClient::close);
-        for(var table:List.of("vouchers","shipments","order_stock_allocations","order_status_history","order_items","shop_orders","orders","cart_items","inventories","product_variants","products","stores","shops","categories","user_roles","users"))jdbc.update("DELETE FROM "+table);
+        for(var table:List.of("store_managers","vouchers","shipments","order_stock_allocations","order_status_history","order_items","shop_orders","orders","cart_items","inventories","product_variants","products","stores","shops","categories","user_roles","users"))jdbc.update("DELETE FROM "+table);
     }
     Session vendor() throws Exception {
         var session=session(false);
@@ -105,6 +105,46 @@ class AdminManagementTests {
                 s.user().getUsername(),"",List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_SHIPPER"))));
         try{return shipping.dashboard(s.user().getUsername(),"",null,null,null,0);}
         finally{context.setAuthentication(previous);}
+    }
+    @Test void revenueIsScopedByShopAndManagerAndCountsOnlyDeliveredOrders() throws Exception {
+        var admin = session(true); var seller = vendor(); var outsider = vendor(); var buyer = session(false);
+        var manager = session(false);
+        var managerRole = roles.findByName(RoleName.ROLE_MANAGER).orElseGet(() -> {
+            var r = new Role(); r.setName(RoleName.ROLE_MANAGER); return roles.saveAndFlush(r);
+        });
+        jdbc.update("INSERT INTO user_roles(user_id,role_id) VALUES (?,?)", manager.user().getId(), managerRole.getId());
+        var f = fixture(seller); var other = fixture(outsider);
+        jdbc.update("UPDATE shops SET name=? WHERE id=?", "Revenue Alpha", f.shop().getId());
+        jdbc.update("UPDATE shops SET name=? WHERE id=?", "Revenue Secret", other.shop().getId());
+        jdbc.update("INSERT INTO store_managers(user_id,store_id) VALUES (?,?)", manager.user().getId(), f.store().getId());
+        var delivered = place(buyer, f); var pending = place(buyer, f); var hidden = place(buyer, other);
+        jdbc.update("UPDATE shop_orders SET status='DELIVERED' WHERE order_id=?", delivered);
+        jdbc.update("UPDATE shop_orders SET status='DELIVERED' WHERE order_id=?", hidden);
+        jdbc.update("UPDATE orders SET order_date='2026-10-01 17:00:00' WHERE id=?", delivered);
+        jdbc.update("UPDATE orders SET order_date='2026-10-02 16:59:59' WHERE id=?", pending);
+        var range = "?from=2026-10-02&to=2026-10-02";
+        var page = get(admin, "/admin/revenue" + range + "&shopId=" + f.shop().getId());
+        assertThat(page.statusCode()).isEqualTo(200);
+        assertThat(page.body()).contains("Revenue Alpha", "200,000", ">2</td><td>1</td><td>1</td><td>0</td>")
+                .doesNotContain("Revenue Secret</td>");
+        var sellerPage = get(seller, "/seller/revenue" + range);
+        assertThat(sellerPage.statusCode()).isEqualTo(200);
+        assertThat(sellerPage.body()).contains("Revenue Alpha", "200,000").doesNotContain("Revenue Secret");
+        var managerPage = get(manager, "/manager/revenue" + range);
+        assertThat(managerPage.statusCode()).isEqualTo(200);
+        assertThat(managerPage.body()).contains("Revenue Alpha", "200,000").doesNotContain("Revenue Secret");
+        assertThat(get(manager, "/manager/revenue" + range + "&shopId=" + other.shop().getId()).statusCode()).isEqualTo(403);
+        assertThat(get(seller, "/seller/revenue" + range + "&shopId=" + other.shop().getId()).statusCode()).isEqualTo(403);
+        assertThat(get(buyer, "/admin/revenue").statusCode()).isEqualTo(403);
+        assertThat(get(buyer, "/manager/revenue").statusCode()).isEqualTo(403);
+        assertThat(get(admin, "/admin/revenue?from=2026-10-03&to=2026-10-01").statusCode()).isEqualTo(400);
+        // Both local-day boundaries are exclusive outside this range.
+        var nextDay = get(seller, "/seller/revenue?from=2026-10-03&to=2026-10-03");
+        assertThat(nextDay.statusCode()).isEqualTo(200);
+        assertThat(nextDay.body()).contains(">0</td><td>0</td><td>0</td><td>0</td>");
+        jdbc.update("UPDATE shop_orders SET status='CANCELLED',total_amount=0 WHERE order_id=?", delivered);
+        var cancelled = get(seller, "/seller/revenue" + range);
+        assertThat(cancelled.body()).contains(">2</td><td>0</td><td>1</td><td>1</td>").doesNotContain("200,000");
     }
     @Test void courierHandsOverCodAndShopConfirmsWithoutPayingTwiceOrResendingMail() throws Exception {
         var admin=session(true);var seller=vendor();var buyer=session(false);var s=courier();var f=fixture(seller);
